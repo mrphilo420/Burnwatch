@@ -31,48 +31,6 @@ M_CAL, N_DEV = 1600, 100
 MODEL = "gpt2"
 
 
-def ensure_study_calibration(corpus):
-    C.BASE_MODEL = MODEL
-    C.CORPUS = corpus
-    C.USE_BINOCULARS = False
-    C.USE_FASTDETECT = False
-    path = C.cache_path(MODEL.replace("/", "_"), M_CAL, N_DEV, corpus, False, False)
-    if os.path.exists(path) and C.cache_compatible(path):
-        print(f"[study] loading {path}", flush=True)
-        return C.load_bundle(path)
-    print(f"[study] building {corpus} calibration (m={M_CAL}, dev={N_DEV})…", flush=True)
-    bundle = C.build_calibration(M_CAL, N_DEV)
-    C.save_bundle(bundle, path)
-    return bundle
-
-
-def variant_docs(corpus, variant, n):
-    """Return (humans, ais, meta_h, meta_a) for a study cell."""
-    recs = data.eval_records(corpus, cache_dir=C.CACHE_DIR)
-    humans = [r for r in recs if r["kind"] == "human"][:400]
-    ais = [r for r in recs if r["kind"] == "ai"][:400]
-    paras = [r for r in recs if r["kind"] == "para"][:400]
-    if variant == "clean":
-        h, a = humans[:n], ais[:n]
-        return ([r["text"] for r in h], [r["text"] for r in a],
-                [r["subgroup"] for r in h], [r["subgroup"] for r in a])
-    if variant == "paraphrase":
-        if len(paras) < n:
-            return None
-        p = paras[:n]
-        h = humans[:n]
-        return ([r["text"] for r in h], [r["text"] for r in p],
-                [r["subgroup"] for r in h], [r["subgroup"] for r in p])
-    if variant == "mixed":
-        h, a = humans[:n], ais[:n]
-        mixed = [C.mix_documents(hr["text"], ar["text"], 0.5)
-                 for hr, ar in zip(h, a)]
-        return ([r["text"] for r in h], mixed,
-                [r["subgroup"] for r in h],
-                ["mixed:" + r["subgroup"] for r in h])
-    raise ValueError(f"unknown variant {variant!r}")
-
-
 def evaluate_criterion(cell):
     """Preregistered joint criterion per alpha from paired detail records."""
     out = {}
@@ -164,7 +122,43 @@ def summarize_subgroups(detail, alpha, minimum_n=10):
     ai_recs = [{"subgroup": r["ai_subgroup"], "alert": r["alerts"]["B"][alpha]}
                for r in detail]
     return {"human_fpr_by_subgroup": C.aggregate_by_subgroup(human_recs, minimum_n),
-            "ai_power_by_model": C.aggregate_by_subgroup(ai_recs, minimum_n)}
+             "ai_power_by_model": C.aggregate_by_subgroup(ai_recs, minimum_n)}
+
+
+def _length_bin(words):
+    if words < 128:
+        return "40-127"
+    if words < 256:
+        return "128-255"
+    if words < 512:
+        return "256-511"
+    if words < 1024:
+        return "512-1023"
+    return "1024+"
+
+
+def summarize_conditions(detail, alpha, minimum_n=10):
+    """Report alert rates by observed length and available output/domain label."""
+    out = {"length": {}, "output_type": {}, "source_label": {}}
+    for side, word_key, subgroup_key in (
+            ("human", "human_words", "human_subgroup"),
+            ("ai", "ai_words", "ai_subgroup")):
+        for rec in detail:
+            length = _length_bin(rec[word_key])
+            label = rec[subgroup_key] or "unknown"
+            for dimension, value in (("length", length),
+                                     ("output_type", "plain_text"),
+                                     ("source_label", label)):
+                group = out[dimension].setdefault(value, {"human": [], "ai": []})
+                group[side].append(bool(rec["alerts"]["B"][alpha]))
+    for dimension, groups in out.items():
+        for value, sides in groups.items():
+            for side, flags in sides.items():
+                n = len(flags)
+                sides[side] = {"n": n, "alerts": sum(flags),
+                               "rate": (sum(flags) / n if n >= minimum_n else None),
+                               "suppressed": n < minimum_n}
+    return out
 
 
 def write_markdown(report, path):
@@ -178,16 +172,17 @@ def write_markdown(report, path):
              "lower bound for the paired power difference above −0.02.\n")
     for cell in report["cells"]:
         L.append(f"## {cell['corpus']} / {cell['variant']}\n")
-        L.append("| α | constr | human FPR | AI power | mean tokens | futility H/A |")
-        L.append("|---|---|---|---|---|---|")
+        L.append("| α | constr | human FPR | AI power | mean tokens | early H/A | futility H/A |")
+        L.append("|---|---|---|---|---|---|---|")
         for row in cell["rows"]:
             fh = row.get("futility_human_rate")
             fa = row.get("futility_ai_rate")
             fut = f"{fh:.0%} / {fa:.0%}" if fh is not None else "—"
+            early = f"{row['early_decision_human_rate']:.0%} / {row['early_decision_ai_rate']:.0%}"
             L.append(f"| {row['alpha']} | {row['construction']} | "
                      f"{row['human_rate']:.1%} ({row['human_alerts']}/{row['n']}) | "
                      f"{row['ai_rate']:.1%} ({row['ai_alerts']}/{row['n']}) | "
-                     f"{row['mean_tokens_inspected']} | {fut} |")
+                     f"{row['mean_tokens_inspected']} | {early} | {fut} |")
         L.append("")
         L.append("Paired B−fixed (AI docs):")
         for a, ev in cell["criterion"].items():
@@ -206,6 +201,15 @@ def write_markdown(report, path):
             L.append(f"- {name}: " + ("suppressed (n < 10)" if g["suppressed"]
                                       else f"{g['rate']:.1%} ({g['alerts']}/{g['n']})"))
         L.append("")
+        L.append("Condition breakdown (Construction B, α=0.01):")
+        for dimension, groups in cell.get("conditions", {}).items():
+            L.append(f"- {dimension}:")
+            for name, sides in groups.items():
+                h, a = sides["human"], sides["ai"]
+                hrate = "suppressed" if h["suppressed"] else f"{h['rate']:.1%}"
+                arate = "suppressed" if a["suppressed"] else f"{a['rate']:.1%}"
+                L.append(f"  {name}: human {hrate} (n={h['n']}), AI {arate} (n={a['n']})")
+        L.append("")
     L.append("## Limitations\n")
     L.append("- n=150 per class: binomial noise is wide; treat point estimates with "
              "their implicit uncertainty.")
@@ -213,8 +217,10 @@ def write_markdown(report, path):
              "development-selected fixed policy, not a tuned optimum).")
     L.append("- Mixed-authorship splices are synthetic 50/50 word splits, not "
              "naturalistic edited text.")
-    L.append("- RealDet carries no generator/domain metadata: no subgroup or "
-             "paraphrase breakdown there.")
+    L.append("- Paraphrase cells run only when source records explicitly carry a "
+             "paraphrase/attack label; text re-pairing is not treated as paraphrasing.")
+    L.append("- Unknown source metadata is reported as unknown and is never presented "
+             "as a generator or domain comparison.")
     L.append("- Construction A at α=0.001 needs m≥15999 ranks: reported as "
              "infeasible by the resolution floor, not as zero power.")
     with open(path, "w") as f:
@@ -262,6 +268,7 @@ def main():
                     "paired": paired, "detail": detail}
             cell["criterion"] = evaluate_criterion(cell)
             cell["subgroups"] = summarize_subgroups(detail, 0.01)
+            cell["conditions"] = summarize_conditions(detail, 0.01)
             # detail records are large; keep a compact copy in JSON
             cell["detail"] = [
                 {"hs": r["human_subgroup"], "as": r["ai_subgroup"],

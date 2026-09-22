@@ -9,4 +9,5 @@ results/
 calibration_cache/
 study_raid.log
 study_report_realdet.json
-study_report_realdet.md
+study_report_realdet.mdaudit_log.jsonl
+fast-detect-gpt/

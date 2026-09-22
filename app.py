@@ -8,6 +8,8 @@ manuscript. Calibration uses human-written documents and is cached to disk.
 
 import argparse
 import os
+import random
+import secrets
 import threading
 import time
 import traceback
@@ -15,6 +17,7 @@ import uuid
 
 from flask import Flask, jsonify, render_template, request
 
+import audit
 import conformal as C
 import data
 import docutils
@@ -62,6 +65,7 @@ jobs = {}
 
 MIN_TEXT_WORDS = 20
 MAX_TEXT_WORDS = 2000
+DEFAULT_SAMPLE_WINDOW_WORDS = 900
 JOB_TIMEOUT = 3600
 
 
@@ -147,6 +151,36 @@ def verdict_for(res):
     }
 
 
+def sample_upload_text(text, mode="prefix", seed=None, window_words=DEFAULT_SAMPLE_WINDOW_WORDS):
+    """Select the upload view and return text plus reproducibility metadata.
+
+    Prefix sampling is the calibrated production path. Random windows are
+    deliberately labeled exploratory until calibration uses the same policy.
+    """
+    words = text.split()
+    if mode not in ("prefix", "random_window"):
+        raise ValueError("sampling must be 'prefix' or 'random_window'.")
+    if not 20 <= window_words <= MAX_TEXT_WORDS:
+        raise ValueError(f"window_words must be between 20 and {MAX_TEXT_WORDS}.")
+    if seed is None and mode == "random_window":
+        seed = secrets.randbelow(2**32)
+    if seed is not None and (not isinstance(seed, int) or not 0 <= seed < 2**32):
+        raise ValueError("sampling seed must be an integer in [0, 4294967295].")
+    if mode == "prefix" or len(words) <= window_words:
+        start = 0
+    else:
+        start = random.Random(seed).randint(0, len(words) - window_words)
+    selected = words[start:start + window_words]
+    return " ".join(selected), {
+        "mode": mode,
+        "seed": seed,
+        "start_word": start,
+        "window_words": len(selected),
+        "original_words": len(words),
+        "calibrated": mode == "prefix",
+    }
+
+
 def run_file_screen(job):
     """Extract text from an uploaded file, then run the standard screen."""
     ok, err = docutils.validate(job["file_name"], job["file_bytes"])
@@ -155,11 +189,15 @@ def run_file_screen(job):
     job["detail"] = f"Extracting text from {job['file_name']}…"
     text = docutils.extract_text(job["file_name"], job["file_bytes"])
     text = " ".join(text.split())
-    n_words = len(text.split())
-    truncated = n_words > MAX_TEXT_WORDS
+    original_words = len(text.split())
+    sampling_mode = job.get("sampling", "prefix")
+    truncated = sampling_mode == "prefix" and original_words > MAX_TEXT_WORDS
     if truncated:
         text = " ".join(text.split()[:MAX_TEXT_WORDS])
-        n_words = MAX_TEXT_WORDS
+    text, sampling = sample_upload_text(
+        text, sampling_mode, job.get("sampling_seed"),
+        job.get("window_words", DEFAULT_SAMPLE_WINDOW_WORDS))
+    n_words = len(text.split())
     if n_words < MIN_TEXT_WORDS:
         raise ValueError(
             f"'{job['file_name']}' yielded only {n_words} words of text "
@@ -185,7 +223,9 @@ def run_file_screen(job):
         "B": rb,
         "slop": slop_report,
         "text": text,
-        "file": {"name": job["file_name"], "n_words": n_words, "truncated": truncated},
+        "file": {"name": job["file_name"], "n_words": n_words,
+                 "original_words": original_words, "truncated": truncated},
+        "sampling": sampling,
         "elapsed_seconds": round(time.time() - job["created"], 1),
     }
     job["result"] = res
@@ -296,10 +336,12 @@ def worker():
             elif job["kind"] == "model":
                 run_model_switch(job)
             job["status"] = "done"
+            audit.record(job, status="done", path=CFG.get("audit_log"))
             print(f"[job:{job['id']}] {job['kind']} done in {job['result']['elapsed_seconds']}s", flush=True)
         except Exception as exc:
             job["status"] = "error"
             job["error"] = str(exc)
+            audit.record(job, status="error", error=exc, path=CFG.get("audit_log"))
             print(f"[job:{job['id']}] FAILED\n{traceback.format_exc()}", flush=True)
         with queue_cond:
             if len(jobs) > 20:
@@ -351,6 +393,18 @@ def api_status():
         "calibration": cal,
         "busy": any(j["status"] not in ("done", "error") for j in jobs.values()),
     })
+
+
+@app.get("/api/audit")
+def api_audit():
+    """Return recent decision metadata; source documents are never logged."""
+    try:
+        limit = max(1, min(500, int(request.args.get("limit", 100))))
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer between 1 and 500."}), 400
+    records = audit.read_recent(limit, path=CFG.get("audit_log"))
+    return jsonify({"schema_version": 1, "timing": audit.timing_summary(records),
+                    "records": records})
 
 
 @app.post("/api/detect")
@@ -486,6 +540,16 @@ def api_upload():
         alpha = _parse_alpha(request.form.get("alpha", 0.05))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    sampling = (request.form.get("sampling") or "prefix").strip()
+    try:
+        sampling_seed_value = request.form.get("sampling_seed", "").strip()
+        sampling_seed = int(sampling_seed_value) if sampling_seed_value else None
+        window_words = int(request.form.get("window_words", DEFAULT_SAMPLE_WINDOW_WORDS))
+        # Validate before queuing so malformed requests do not become worker errors.
+        sample_upload_text("word " * max(MIN_TEXT_WORDS, window_words),
+                           sampling, sampling_seed, window_words)
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
 
     with queue_cond:
         if any(j["status"] not in ("done", "error") for j in jobs.values()):
@@ -504,6 +568,9 @@ def api_upload():
         "file_name": name,
         "file_bytes": data,
         "alpha": alpha,
+        "sampling": sampling,
+        "sampling_seed": sampling_seed,
+        "window_words": window_words,
         "status": "queued",
         "detail": "Queued…",
         "created": time.time(),
@@ -548,6 +615,8 @@ if __name__ == "__main__":
                         help="add the Fast-DetectGPT conditional-curvature detector to the family")
     parser.add_argument("--device", default="auto", choices=["auto", "cuda", "mps", "cpu"])
     parser.add_argument("--cache-dir", default=os.path.expanduser("~/.cache"))
+    parser.add_argument("--audit-log", default=os.environ.get("BURNWATCH_AUDIT_LOG", "audit_log.jsonl"),
+                        help="append-only JSONL audit log path")
     args = parser.parse_args()
 
     CFG.update(vars(args))

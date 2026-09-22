@@ -690,27 +690,6 @@ def clopper_pearson_upper(k, n, gamma):
 # benchmark (empirical alert rates on Binoculars corpora)
 # ---------------------------------------------------------------------------
 
-def benchmark(bundle, n, corpus, alphas=(0.01, 0.05, 0.1),
-              constructions=("A", "B"), progress=None):
-    """Evaluate empirical alert rates on human vs AI-generated documents
-    from a Binoculars corpus. Documents overlapping the calibration corpus
-    are skipped. One forward pass per document feeds every cell."""
-    def sample(corpus_name):
-        offset = (bundle.m + bundle.n_dev) if corpus_name == CORPUS else 0
-        return (data.get_human_docs(corpus_name, "falcon7", CACHE_DIR, progress=progress)[offset:offset + n],
-                data.get_ai_docs(corpus_name, "falcon7", CACHE_DIR, progress=progress)[offset:offset + n])
-
-    if corpus == "binoc-all":
-        human, ai = [], []
-        for c in data.CORPORA:
-            h, a = sample(c)
-            human += h
-            ai += a
-    else:
-        human, ai = sample(corpus)
-    n = min(len(human), len(ai), n)
-    if n < 5:
-        raise RuntimeError(f"only {n} usable documents for benchmark")
 def mix_documents(human_text, ai_text, frac=0.5):
     """Splice a mixed-authorship document: the first frac words from the
     human text, the remainder from the AI text."""
@@ -778,6 +757,7 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
     cost = {c: {a: [0, 0] for a in alphas} for c in constructions}  # [inspected, savings_pct]
     acts = {c: {a: 0 for a in alphas} for c in constructions}  # executed actions (A early-exits too)
     futility = {a: [0, 0] for a in alphas}  # [human, ai] B futility stops
+    early = {c: {a: [0, 0] for a in alphas} for c in constructions}
     paired_ai = {c: {a: [] for a in alphas} for c in constructions}
     docs_all = humans[:n] + ais[:n]
     pres = [score_fn(doc) for doc in docs_all]
@@ -787,6 +767,8 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
         if detail:
             rec = {"human_subgroup": meta_h[i] if meta_h else None,
                    "ai_subgroup": meta_a[i] if meta_a else None,
+                   "human_words": len(humans[i].split()),
+                   "ai_words": len(ais[i].split()),
                    "alerts": {}, "tokens": {}, "futility": {}}
         for label, doc, pre in (("human", humans[i], pres[i]), ("ai", ais[i], pres[n + i])):
             for c in constructions:
@@ -797,6 +779,10 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
                     cost[c][a][0] += res["tokens_inspected"]
                     cost[c][a][1] += res["tokens_saved_pct"]
                     acts[c][a] += res["actions_executed"]
+                    full_steps = (len(DEFAULT_ROUTE) if c == "B"
+                                  else 1 if c == "fixed" else bundle.n_actions)
+                    if res["actions_executed"] < full_steps:
+                        early[c][a][0 if label == "human" else 1] += 1
                     if label == "ai":
                         paired_ai[c][a].append(1 if res["alert"] else 0)
                     if c == "B" and res.get("stopped_futility"):
@@ -806,6 +792,8 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
                         rec["tokens"].setdefault(c, {})[a] = res["tokens_inspected"]
                         if c == "B":
                             rec["futility"][a] = bool(res.get("stopped_futility"))
+                        rec.setdefault("early", {}).setdefault(c, {})[a] = (
+                            res["actions_executed"] < full_steps)
         if detail:
             detail_out.append(rec)
         if progress:
@@ -823,6 +811,10 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
         "mean_tokens_inspected": round(cost[c][a][0] / (2 * n)),
         "mean_savings_pct": round(cost[c][a][1] / (2 * n)),
         "mean_actions": round(acts[c][a] / (2 * n), 2),
+        "early_decision_human": early[c][a][0],
+        "early_decision_ai": early[c][a][1],
+        "early_decision_human_rate": round(early[c][a][0] / n, 4),
+        "early_decision_ai_rate": round(early[c][a][1] / n, 4),
         "futility_human": futility[a][0] if c == "B" else None,
         "futility_ai": futility[a][1] if c == "B" else None,
         "futility_human_rate": round(futility[a][0] / n, 4) if c == "B" else None,

@@ -1,8 +1,39 @@
-# Empirical study report: adaptive within-document screening
+# Historical empirical study report: adaptive within-document screening
 
 _Generated 2026-09-22T14:04:32.894005+00:00 · model gpt2 · calibration m=1600, dev=100 · detectors ll, rank, logrank, slop · n=150 per class._
 
 Preregistered criterion per (corpus, variant, α): ≥20% lower mean online cost than the fixed ll@1024 policy at the same α, with a one-sided 95% lower bound for the paired power difference above −0.02.
+
+## Report Status
+
+This report was generated before the structured early-decision metrics and
+metadata corrections were added. Its alert, power, token-cost, and futility
+values remain historical measurements, but its subgroup labels must not be
+used as domain or generator evidence. The earlier RAID `abstracts` label and
+RealDet `all` label were not source metadata; the current pipeline reports
+missing metadata as `unknown`.
+
+The current report schema additionally includes:
+
+| Field | Interpretation |
+|---|---|
+| `early_decision_human_rate` / `early_decision_ai_rate` | Fraction stopping before the full construction route, by class |
+| `length` condition breakdown | Alert rates in 40–127, 128–255, 256–511, 512–1023, and 1024+ word bins |
+| `output_type` | Explicit source type; current text study records report `plain_text` |
+| `source_label` | Dataset domain or generator label, only when actually supplied |
+| `timing` | Job-level p50/p95/max latency is available from `/api/audit` |
+
+Regenerate this report with the current implementation:
+
+```bash
+python study.py --corpora raid detectrl realdet --out study_report.json
+```
+
+For genuine generator-shift labels from the Binoculars paired sources, run:
+
+```bash
+python study.py --corpora ccnews cnn pubmed --out study_binoculars.json
+```
 
 ## raid / clean
 
@@ -23,11 +54,11 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff -0.007 (95% lower -0.026), cost ratio 0.82 → **FAIL**
 - α=0.05: power diff +0.000 (95% lower -0.016), cost ratio 0.64 → **PASS**
 
-Human FPR by subgroup (Construction B):
-- abstracts: 75.3% (113/150)
+Human FPR by subgroup (Construction B; legacy label invalid):
+- unknown: 75.3% (113/150)
 
-AI power by generator (Construction B):
-- abstracts: 75.3% (113/150)
+AI power by generator (Construction B; legacy label invalid):
+- unknown: 75.3% (113/150)
 
 ## raid / mixed
 
@@ -48,11 +79,11 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff +0.000 (95% lower +0.000), cost ratio 0.68 → **PASS**
 - α=0.05: power diff -0.007 (95% lower -0.018), cost ratio 0.68 → **PASS**
 
-Human FPR by subgroup (Construction B):
-- abstracts: 0.0% (0/150)
+Human FPR by subgroup (Construction B; legacy label invalid):
+- unknown: 0.0% (0/150)
 
-AI power by generator (Construction B):
-- mixed:abstracts: 0.0% (0/150)
+AI power by generator (Construction B; legacy label invalid):
+- mixed:unknown: 0.0% (0/150)
 
 ## detectrl / clean
 
@@ -73,10 +104,10 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff +0.000 (95% lower +0.000), cost ratio 0.61 → **PASS**
 - α=0.05: power diff +0.007 (95% lower -0.018), cost ratio 0.60 → **PASS**
 
-Human FPR by subgroup (Construction B):
+Human FPR by subgroup (Construction B; metadata unavailable):
 - unknown: 0.0% (0/150)
 
-AI power by generator (Construction B):
+AI power by generator (Construction B; metadata unavailable):
 - unknown: 0.0% (0/150)
 
 ## detectrl / mixed
@@ -98,10 +129,10 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff +0.000 (95% lower +0.000), cost ratio 0.55 → **PASS**
 - α=0.05: power diff +0.013 (95% lower -0.002), cost ratio 0.54 → **PASS**
 
-Human FPR by subgroup (Construction B):
+Human FPR by subgroup (Construction B; metadata unavailable):
 - unknown: 0.0% (0/150)
 
-AI power by generator (Construction B):
+AI power by generator (Construction B; metadata unavailable):
 - mixed:unknown: 0.0% (0/150)
 
 ## realdet / clean
@@ -123,11 +154,11 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff -0.027 (95% lower -0.053), cost ratio 0.93 → **FAIL**
 - α=0.05: power diff +0.020 (95% lower -0.020), cost ratio 0.79 → **PASS**
 
-Human FPR by subgroup (Construction B):
-- all: 14.7% (22/150)
+Human FPR by subgroup (Construction B; legacy label invalid):
+- unknown: 14.7% (22/150)
 
-AI power by generator (Construction B):
-- all: 14.7% (22/150)
+AI power by generator (Construction B; legacy label invalid):
+- unknown: 14.7% (22/150)
 
 ## realdet / mixed
 
@@ -148,16 +179,18 @@ Paired B−fixed (AI docs):
 - α=0.01: power diff +0.000 (95% lower +0.000), cost ratio 0.71 → **PASS**
 - α=0.05: power diff +0.020 (95% lower +0.001), cost ratio 0.69 → **PASS**
 
-Human FPR by subgroup (Construction B):
-- all: 0.0% (0/150)
+Human FPR by subgroup (Construction B; legacy label invalid):
+- unknown: 0.0% (0/150)
 
-AI power by generator (Construction B):
-- mixed:all: 0.0% (0/150)
+AI power by generator (Construction B; legacy label invalid):
+- mixed:unknown: 0.0% (0/150)
 
 ## Limitations
 
 - n=150 per class: binomial noise is wide; treat point estimates with their implicit uncertainty.
 - Fixed comparator is ll@1024 at full weight (a proxy for the development-selected fixed policy, not a tuned optimum).
 - Mixed-authorship splices are synthetic 50/50 word splits, not naturalistic edited text.
-- RealDet carries no generator/domain metadata: no subgroup or paraphrase breakdown there.
+- This historical artifact has no early-decision-rate or length/output-type breakdown; regenerate it before using those SOP measures.
+- The historical RAID and RealDet subgroup labels were placeholders and are not valid domain/generator analyses.
+- Paraphrase cells are not valid unless source records carry an explicit paraphrase/attack label; clean-text re-pairing is not paraphrasing.
 - Construction A at α=0.001 needs m≥15999 ranks: reported as infeasible by the resolution floor, not as zero power.

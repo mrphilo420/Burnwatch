@@ -1,6 +1,8 @@
 import unittest
 
 import conformal
+import study
+import audit
 
 
 class ConstructionDispatchTests(unittest.TestCase):
@@ -81,6 +83,24 @@ class SubgroupAggregationTests(unittest.TestCase):
         out = conformal.aggregate_by_subgroup(records, minimum_n=5)
         self.assertTrue(out["rare"]["suppressed"])
         self.assertIsNone(out["rare"]["rate"])
+
+    def test_condition_summary_reports_length_bins(self):
+        detail = [{
+            "human_words": 100, "ai_words": 600,
+            "human_subgroup": "news", "ai_subgroup": "generator-x",
+            "alerts": {"B": {0.01: False}},
+        }]
+        out = study.summarize_conditions(detail, 0.01, minimum_n=1)
+        self.assertIn("40-127", out["length"])
+        self.assertIn("512-1023", out["length"])
+        self.assertEqual(out["length"]["512-1023"]["ai"]["rate"], 0.0)
+
+    def test_timing_summary_reports_percentiles(self):
+        rows = [{"status": "done", "elapsed_seconds": x} for x in (1, 2, 3, 4)]
+        out = audit.timing_summary(rows)
+        self.assertEqual(out["n"], 4)
+        self.assertEqual(out["p50_seconds"], 2.5)
+        self.assertEqual(out["p95_seconds"], 3.85)
 
 
 if __name__ == "__main__":

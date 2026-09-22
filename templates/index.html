@@ -557,6 +557,15 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
         </div>
         <div class="upload-ready" id="upload-ready" hidden>
           <span class="file-chip" id="file-chip">…</span>
+          <label class="caption" for="file-sampling">View
+            <select id="file-sampling" class="calc-input" style="margin-left:4px;padding:6px 8px">
+              <option value="prefix">first scored prefix</option>
+              <option value="random_window">random contiguous window</option>
+            </select>
+          </label>
+          <label class="caption" for="file-seed">seed
+            <input id="file-seed" class="calc-input" type="number" min="0" max="4294967295" placeholder="auto" style="width:110px;margin-left:4px;padding:6px 8px">
+          </label>
           <button class="btn btn-primary" id="btn-screen-file" type="button">Screen file</button>
           <button class="btn btn-secondary" id="btn-file-clear" type="button">Remove</button>
         </div>
@@ -1496,6 +1505,8 @@ async function screenFile(){
     const fd = new FormData();
     fd.append('file', pendingFile);
     fd.append('alpha', STATE.alpha);
+    fd.append('sampling', $('file-sampling').value);
+    if($('file-seed').value.trim()) fd.append('sampling_seed', $('file-seed').value.trim());
     const res = await fetch('/api/upload', { method:'POST', body: fd });
     const data = await res.json();
     if(!res.ok){
@@ -1694,7 +1705,7 @@ function renderBenchmark(res){
     return `<tr>
       <td><b>${row.construction}</b></td>
       <td><b>${row.alpha}</b></td>
-      <td><b>${(row.human_rate*100).toFixed(1)}%</b> (${row.human_alerts}/${row.n}) ${okHuman ? '' : '· target α'}</td>
+      <td><b>${(row.human_rate*100).toFixed(1)}%</b> (${row.human_alerts}/${row.n}) ${okHuman ? '' : '<span title="Human alert rate differs from nominal alpha by at least 12 percentage points">· far from nominal α</span>'}</td>
       <td><b>${(row.ai_rate*100).toFixed(1)}%</b> (${row.ai_alerts}/${row.n})</td>
       <td>${costCell} · vs ${row.construction === 'B' ? 'full 1,024-token route' : 'full budget'}${fut}</td>
       <td>${row.n}</td>
@@ -1878,7 +1889,12 @@ function render(res){
   $('result-source').hidden = !src;
   if(src){
     $('result-source').textContent =
-      `Source: ${src.name} · ${src.n_words} words extracted` + (src.truncated ? ' · truncated to the 2,000-word cap' : '') + ' · scored at α ' + res.alpha;
+      `Source: ${src.name} · ${src.n_words} words scored` + (src.original_words && src.original_words !== src.n_words ? ` of ${src.original_words}` : '')
+      + (src.truncated ? ' · truncated to the 2,000-word cap' : '')
+      + (res.sampling && res.sampling.mode === 'random_window'
+        ? ` · random window from word ${res.sampling.start_word + 1} (seed ${res.sampling.seed}) · exploratory`
+        : ' · first scored prefix')
+      + ' · scored at α ' + res.alpha;
   }
 }
 function renderSlop(sl){

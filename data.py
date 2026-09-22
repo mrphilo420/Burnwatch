@@ -123,7 +123,9 @@ def _recommended_docs(corpus, kind, cache_dir, progress=None):
 def _fetch_recommended(corpus, kind, cache_dir, progress=None):
     if corpus == "realdet":
         return _fetch_realdet(kind, cache_dir, progress)
-    if corpus == "raid":
+    if corpus in CORPORA:
+        records = _eval_records_binocular(corpus, cache_dir, progress)
+    elif corpus == "raid":
         return _fetch_raid(kind, cache_dir, progress)
     return _fetch_detectrl(kind, cache_dir, progress)
 
@@ -197,9 +199,11 @@ def eval_records(corpus, cache_dir="~/.cache", progress=None):
 
     Returns a list of {kind, text, subgroup, model, attack}. Per-subgroup
     caps keep small domains/generators represented despite ordered streams.
-    Human subgroups are domains; AI subgroups are generator models.
+    Human subgroups are domains and AI subgroups are generator models only
+    when the source dataset provides those fields. Missing metadata is
+    retained as ``unknown``.
     """
-    path = os.path.join(cache_dir_for(cache_dir), f"{corpus}-eval-records.jsonl")
+    path = os.path.join(cache_dir_for(cache_dir), f"{corpus}-eval-records-v2.jsonl")
     if os.path.exists(path):
         with open(path) as f:
             return [json.loads(line) for line in f]
@@ -218,6 +222,22 @@ def eval_records(corpus, cache_dir="~/.cache", progress=None):
     return records
 
 
+def _eval_records_binocular(corpus, cache_dir, progress=None):
+    """Preserve the actual Binoculars generator source in evaluation records."""
+    records = []
+    for source in AI_SOURCES:
+        pairs = get_pairs(corpus, source, cache_dir)
+        for pair in pairs:
+            if len(pair["human"].split()) >= 100 and len(pair["ai"].split()) >= 40:
+                records.append({"kind": "human", "text": pair["human"],
+                                "subgroup": corpus, "model": "human", "attack": "none"})
+                records.append({"kind": "ai", "text": pair["ai"],
+                                "subgroup": source, "model": source, "attack": "none"})
+        if progress:
+            progress(len(records), None)
+    return records
+
+
 def _eval_records_raid(cache_dir, progress=None):
     """Build RAID eval records from the existing text-only JSONL caches.
 
@@ -225,10 +245,8 @@ def _eval_records_raid(cache_dir, progress=None):
     domain='abstracts', making mixed-domain streaming intractable
     without HF_TOKEN + millions of rows.  The text caches already
     contain 13k+ human and 50k AI docs drawn from that same prefix.
-    We fabricate subgroup='abstracts' and model='unknown' for the AI
-    side (the RAID text cache has no per-model split), and create a
-    paraphrase variant by re-pairing the first half of AI docs with
-    the second half.
+    The text-only cache does not retain domain, model, or attack metadata.
+    Those fields remain unknown; clean text is never relabeled as paraphrase.
     """
     human_path = os.path.join(cache_dir_for(cache_dir), "raid-human.jsonl")
     ai_path = os.path.join(cache_dir_for(cache_dir), "raid-ai.jsonl")
@@ -252,10 +270,10 @@ def _eval_records_raid(cache_dir, progress=None):
     ai_docs = _load(ai_path, 600)
     if progress:
         progress(len(human_docs) + len(ai_docs), None)
-    records = ([{"kind": "human", "text": t, "subgroup": "abstracts",
-                 "model": "human", "attack": "none"} for t in human_docs[:400]]
-               + [{"kind": "ai", "text": t, "subgroup": "abstracts",
-                   "model": "unknown", "attack": "none"} for t in ai_docs[:400]])
+    records = ([{"kind": "human", "text": t, "subgroup": "unknown",
+                  "model": "human", "attack": "none"} for t in human_docs[:400]]
+                + [{"kind": "ai", "text": t, "subgroup": "unknown",
+                    "model": "unknown", "attack": "none"} for t in ai_docs[:400]])
     return records
 
 

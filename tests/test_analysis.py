@@ -191,8 +191,37 @@ class BenchmarkMeansTests(unittest.TestCase):
             self.assertLessEqual(row["mean_savings_pct"], 100.0)
             self.assertLessEqual(row["mean_tokens_inspected"], 1024)
 
+    def test_early_decision_rates_are_reported(self):
+        bundle = _synthetic_bundle(m=99)
+        bundle.corpus = "test-corpus"
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _ = conformal.evaluate_cells(
+            bundle, humans, ais, ("A", "B"), (0.5,), score_fn=_stub_actions)
+        by_key = {(r["construction"], r["alpha"]): r for r in rows}
+        self.assertEqual(by_key[("A", 0.5)]["early_decision_ai_rate"], 1.0)
+        self.assertEqual(by_key[("B", 0.5)]["early_decision_human_rate"], 1.0)
+
 
 class ApiValidationTests(unittest.TestCase):
+    def test_random_upload_sampling_is_seed_reproducible(self):
+        import app as web_app
+        text = " ".join(f"w{i}" for i in range(100))
+        first, meta = web_app.sample_upload_text(text, "random_window", 7, 20)
+        second, meta2 = web_app.sample_upload_text(text, "random_window", 7, 20)
+        self.assertEqual(first, second)
+        self.assertEqual(meta, meta2)
+        self.assertFalse(meta["calibrated"])
+
+    def test_audit_endpoint_returns_versioned_schema(self):
+        import app as web_app
+        client = web_app.app.test_client()
+        resp = client.get("/api/audit?limit=1")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json()["schema_version"], 1)
+        self.assertIn("records", resp.get_json())
+        self.assertIn("timing", resp.get_json())
+
     def test_detect_rejects_non_numeric_alpha(self):
         import app as web_app
         client = web_app.app.test_client()
