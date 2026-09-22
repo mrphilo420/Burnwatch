@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Conformal within-document AI-text screening — Construction A and B.
+"""Project Burnwatch — adaptive within-document AI-text screening.
+
+Construction A and B.
 
 Implements the two finite-sample constructions of the accompanying theory
 manuscript, per their proofs:
@@ -917,7 +919,7 @@ def cache_compatible(path):
 
 def main():
     global BASE_MODEL, DEVICE, CACHE_DIR, CORPUS, USE_BINOCULARS, USE_FASTDETECT
-    ap = argparse.ArgumentParser(description="Conformal within-document AI-text screening")
+    ap = argparse.ArgumentParser(description="Project Burnwatch — adaptive within-document AI-text screening")
     ap.add_argument("--calibrate", action="store_true", help="build calibration cache")
     ap.add_argument("--screen", type=str, default=None, help="text file to screen")
     ap.add_argument("--replay", type=str, default=None,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Conformal within-document AI-text screening web interface.
+"""Project Burnwatch — adaptive within-document AI-text screening web interface.
 
 Implements the two conformal constructions (registered family + union bound;
 complete-path calibration with early stopping) per the accompanying theory
@@ -534,7 +534,7 @@ def api_job(job_id):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Conformal AI-text screening web interface")
+    parser = argparse.ArgumentParser(description="Project Burnwatch — adaptive AI-text screening web interface")
     parser.add_argument("--port", type=int, default=5010)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--m", type=int, default=260, help="calibration documents")
