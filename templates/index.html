@@ -1062,6 +1062,11 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
         </div>
 
         <div class="faq-item">
+          <button class="faq-q" type="button">What does the upload "random contiguous window" option do?<span class="caret">›</span></button>
+          <div class="faq-a">By default an uploaded file is scored on its <b>first scored prefix</b> (the first 2,000 words, then the first 1,024 tokens the detectors read) — the view the calibration bundles are built for. The <b>random contiguous window</b> option instead picks a contiguous slice from anywhere in the full extracted document, using the seed you enter (or an auto-generated one). The result shows the seed and starting word so the same window can be reproduced exactly, and the audit record stores the sampling configuration. One caveat: the current conformal calibration is prefix-based, so random-window p-values are <b>exploratory</b> — they do not carry the nominal α guarantee until calibration is rebuilt with the same sampling policy.</div>
+        </div>
+
+        <div class="faq-item">
           <button class="faq-q" type="button">How do I run this with different settings?<span class="caret">›</span></button>
           <div class="faq-a"><span class="mono">python app.py --base-model Qwen/Qwen2.5-1.5B --corpus cnn --binoculars --m 260</span>. Calibration caches are per (model, corpus, detector set, m) and rebuild automatically when the configuration changes. The audit bound, calibration counts, and both constructions can also be run from the CLI: <span class="mono">python conformal.py --screen file.txt --construction both</span>.</div>
         </div>
