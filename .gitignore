@@ -1,0 +1,12 @@
+env/
+__pycache__/
+*.pyc
+tmp_results/
+results/
+*.png
+.DS_Store
+.Rhistory
+calibration_cache/
+study_raid.log
+study_report_realdet.json
+study_report_realdet.md

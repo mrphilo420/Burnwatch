@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conformal AI-Text Screening</title>
+<style>
+/* ── tokens ─────────────────────────────────────────────── */
+:root{
+  --primary:#0066cc; --primary-focus:#0071e3; --primary-on-dark:#2997ff;
+  --ink:#1d1d1f; --body:#1d1d1f; --body-on-dark:#ffffff; --body-muted:#cccccc;
+  --ink-muted-80:#333333; --ink-muted-48:#7a7a7a;
+  --divider-soft:#f0f0f0; --hairline:#e0e0e0;
+  --canvas:#ffffff; --canvas-parchment:#f5f5f7; --surface-pearl:#fafafc;
+  --surface-tile-1:#272729; --surface-tile-2:#2a2a2c; --surface-tile-3:#252527;
+  --surface-black:#000000;
+  --on-primary:#ffffff; --on-dark:#ffffff;
+  --green:#34c759; --orange:#ff9500; --red:#ff3b30; --gray-soft:#86868b;
+  --r-sm:8px; --r-lg:18px; --pill:9999px;
+  --display:"SF Pro Display","SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --text:"SF Pro Text","SF Pro Display",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-font-smoothing:antialiased}
+
+/* ── global nav ────────────────────────────────────────── */
+.global-nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  height:44px;background:var(--surface-black);color:var(--on-dark);padding:0 22px}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--on-dark)}
+.nav-mark{width:22px;height:22px;border-radius:6px;background:var(--surface-tile-2);color:#fff;
+  display:grid;place-items:center;font-size:13px;font-weight:600;letter-spacing:-.2px}
+.nav-name{font-size:12px;font-weight:400;letter-spacing:-.12px;opacity:.92}
+.nav-status{font-size:12px;letter-spacing:-.12px;color:var(--body-muted)}
+.nav-status b{color:#fff;font-weight:400}
+
+/* ── sub-nav · tabs ────────────────────────────────────── */
+.sub-nav{position:sticky;top:44px;z-index:49;display:flex;align-items:center;justify-content:space-between;
+  height:52px;background:rgba(245,245,247,.8);backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.08);padding:0 24px}
+.tab-bar{display:flex;gap:4px;align-items:center}
+.tab{background:transparent;border:none;font-family:var(--text);font-size:14px;font-weight:400;
+  letter-spacing:-.224px;color:var(--ink-muted-48);padding:8px 16px;border-radius:var(--pill);cursor:pointer;
+  line-height:1;transition:color .15s,background .15s}
+.tab:hover{color:var(--ink)}
+.tab.active{background:var(--surface-black);color:#fff;font-weight:600}
+.sub-nav-right{display:flex;align-items:center;gap:16px}
+.sub-nav-chip{font-size:12px;letter-spacing:-.12px;color:var(--ink-muted-48)}
+
+/* ── buttons ───────────────────────────────────────────── */
+.btn{font-family:var(--text);border:none;cursor:pointer;transition:transform .12s ease;will-change:transform}
+.btn:active{transform:scale(.95)}
+.btn:focus-visible{outline:2px solid var(--primary-focus);outline-offset:2px}
+.btn-primary{background:var(--primary);color:var(--on-primary);font-size:17px;font-weight:400;
+  border-radius:var(--pill);padding:11px 22px;line-height:1}
+.btn-store-hero{background:var(--primary);color:var(--on-primary);font-size:18px;font-weight:300;
+  border-radius:var(--pill);padding:14px 28px;line-height:1}
+.btn-store-hero:disabled{background:var(--ink-muted-48);cursor:default}
+.btn-secondary{background:transparent;color:var(--primary);border:1px solid var(--primary);
+  font-size:17px;font-weight:400;border-radius:var(--pill);padding:11px 22px;line-height:1}
+
+/* ── tiles & tabs ──────────────────────────────────────── */
+.tile{width:100%;padding:80px 24px}
+.tile-results{padding:56px 28px 96px}
+.tile-results .tile-inner{max-width:1240px}
+.tile-light{background:var(--canvas);color:var(--ink)}
+.tile-parchment{background:var(--canvas-parchment);color:var(--ink)}
+.tile-dark{background:var(--surface-tile-1);color:var(--on-dark)}
+.tile-inner{max-width:980px;margin:0 auto}
+.tab-panel[hidden]{display:none}
+
+/* ── typography ────────────────────────────────────────── */
+.hero-display{font-family:var(--display);font-size:56px;font-weight:600;line-height:1.07;letter-spacing:-.28px}
+.display-lg{font-family:var(--display);font-size:40px;font-weight:600;line-height:1.1;letter-spacing:0}
+.display-md{font-family:var(--text);font-size:34px;font-weight:600;line-height:1.47;letter-spacing:-.374px}
+.lead{font-family:var(--display);font-size:28px;font-weight:400;line-height:1.14;letter-spacing:.196px}
+.tagline{font-family:var(--display);font-size:21px;font-weight:600;line-height:1.19;letter-spacing:.231px}
+.body{font-size:17px;font-weight:400;line-height:1.47;letter-spacing:-.374px}
+.caption{font-size:14px;font-weight:400;line-height:1.43;letter-spacing:-.224px}
+.caption-strong{font-size:14px;font-weight:600;line-height:1.29;letter-spacing:-.224px}
+.fine-print{font-size:12px;font-weight:400;line-height:1.3;letter-spacing:-.12px}
+.on-dark{color:var(--on-dark)}
+.muted-dark{color:var(--body-muted)}
+.muted-light{color:var(--ink-muted-48)}
+.link{color:var(--primary);text-decoration:none}
+.link:hover{text-decoration:underline}
+.link-dark{color:var(--primary-on-dark);text-decoration:none}
+.link-dark:hover{text-decoration:underline}
+.eyebrow{font-size:14px;font-weight:600;letter-spacing:-.224px;color:var(--ink-muted-48);text-transform:uppercase}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.92em}
+
+/* ── hero / input ──────────────────────────────────────── */
+.hero{display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center}
+.hero .hero-display{max-width:760px}
+.hero .lead{max-width:660px;color:var(--ink-muted-80)}
+.input-tabs{display:inline-flex;gap:2px;background:var(--canvas-parchment);border:1px solid var(--hairline);
+  border-radius:var(--pill);padding:3px;margin-top:10px}
+.input-tab{background:transparent;border:none;font-family:var(--text);font-size:14px;font-weight:400;
+  letter-spacing:-.224px;color:var(--ink-muted-48);padding:8px 18px;border-radius:var(--pill);cursor:pointer;
+  line-height:1;transition:color .15s,background .15s}
+.input-tab:hover{color:var(--ink)}
+.input-tab.active{background:var(--surface-black);color:#fff;font-weight:600}
+.input-panel{width:100%;max-width:980px;display:flex;justify-content:center}
+.input-panel[hidden]{display:none}
+.input-card{width:100%;max-width:980px;background:var(--canvas-parchment);border-radius:var(--r-lg);
+  padding:24px;text-align:left;margin-top:16px}
+.input-card textarea{width:100%;min-height:220px;resize:vertical;border:none;background:transparent;outline:none;
+  font-family:var(--text);font-size:17px;font-weight:400;line-height:1.47;letter-spacing:-.374px;color:var(--ink)}
+.input-card textarea::placeholder{color:var(--ink-muted-48)}
+.upload-card{width:100%;max-width:980px;background:var(--canvas-parchment);border-radius:var(--r-lg);
+  padding:24px;text-align:left;margin-top:16px}
+.upload-drop{border:1.5px dashed var(--hairline);border-radius:var(--r-lg);padding:28px 24px;
+  text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.upload-drop:hover,.upload-drop.dragover{border-color:var(--primary);background:var(--surface-pearl)}
+.btn-link{background:none;border:none;padding:0;font-family:var(--text);font-size:17px;
+  font-weight:400;letter-spacing:-.374px;color:var(--primary);cursor:pointer;text-decoration:underline}
+.btn-link:hover{text-decoration:none}
+.upload-ready{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:6px 4px}
+.file-chip{display:inline-flex;align-items:center;gap:8px;background:var(--canvas);
+  border:1px solid var(--hairline);border-radius:var(--pill);padding:8px 16px;
+  font-size:14px;letter-spacing:-.224px;color:var(--ink);max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.file-chip b{color:var(--ink-muted-48);font-weight:400}
+.input-meta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;
+  border-top:1px solid var(--hairline);padding-top:12px;font-size:12px;letter-spacing:-.12px;color:var(--ink-muted-48)}
+
+/* ── controls ──────────────────────────────────────────── */
+.param-group{display:flex;flex-direction:column;gap:16px}
+.param-group h3{font-size:14px;font-weight:600;letter-spacing:-.224px;color:var(--ink-muted-48);text-transform:uppercase}
+.chip-grid{display:flex;flex-wrap:wrap;gap:12px}
+.chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:12px 20px;
+  background:var(--canvas);color:var(--ink);font-family:var(--text);font-size:14px;font-weight:400;
+  letter-spacing:-.224px;border:1px solid var(--hairline);border-radius:var(--pill);cursor:pointer;transition:border-color .15s}
+.chip:hover{border-color:var(--ink-muted-48)}
+.chip.selected{border:2px solid var(--primary-focus);padding:11px 19px;font-weight:600}
+.chip:disabled{opacity:.45;cursor:default;pointer-events:none}
+.chip:disabled.selected{border-color:var(--hairline)}
+.detect-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+
+/* ── progress ──────────────────────────────────────────── */
+.progress{width:100%;max-width:980px;margin-top:8px}
+.progress-track{height:3px;background:var(--hairline);border-radius:var(--pill);overflow:hidden}
+.progress-fill{height:100%;width:0%;background:var(--primary);border-radius:var(--pill);transition:width .5s ease}
+.progress-label{display:block;margin-top:10px;font-size:14px;letter-spacing:-.224px;color:var(--ink-muted-48)}
+.progress-error{color:var(--red)}
+
+/* ── results · two panels ──────────────────────────────── */
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:36px}
+.panel{background:var(--surface-tile-2);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg);padding:34px 36px;min-width:0}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.panel-head .tagline{color:var(--on-dark)}
+.panel-desc{margin-top:6px;font-size:14px;font-weight:400;letter-spacing:-.224px;line-height:1.43;color:var(--body-muted)}
+.panel-foot{margin-top:26px;color:var(--gray-soft);border-top:1px solid rgba(255,255,255,.07);padding-top:16px}
+.verdict-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.verdict-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.verdict-note{margin-top:14px;font-size:15px;font-weight:400;line-height:1.55;letter-spacing:-.2px;color:var(--body-muted)}
+.slop-report{background:var(--surface-tile-2);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg);padding:26px 30px;margin-top:34px}
+.slop-desc{margin-top:10px;font-size:14px;letter-spacing:-.224px;line-height:1.5;color:var(--body-muted)}
+.slop-chips{margin-top:16px}
+.results-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.result-source{margin-top:12px;font-size:14px;letter-spacing:-.224px;color:var(--body-muted)}
+.meta-chip{font-size:12px;letter-spacing:-.12px;color:var(--body-muted);
+  background:var(--surface-tile-3);border:1px solid rgba(255,255,255,.08);border-radius:var(--pill);padding:6px 14px}
+.meta-chip b{color:#fff;font-weight:600}
+.steps-table{width:100%;margin-top:24px;border-collapse:collapse;font-size:14px;letter-spacing:-.2px;
+  table-layout:fixed}
+.steps-table th{font-size:11px;font-weight:600;letter-spacing:-.1px;color:var(--body-muted);
+  text-transform:uppercase;text-align:left;padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.12);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps-table td{padding:13px 10px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--body-muted);
+  font-variant-numeric:tabular-nums;overflow-wrap:break-word;word-break:break-word}
+.steps-table td b{color:#fff;font-weight:600}
+.cell-sub{display:block;font-size:10.5px;font-weight:400;color:var(--gray-soft);margin-top:3px;
+  font-variant-numeric:tabular-nums}
+/* Construction A: 6 columns — step, detector, budget, score, p (≤ bound), status */
+.steps-table-a th:nth-child(1),.steps-table-a td:nth-child(1){width:38px;text-align:center}
+.steps-table-a th:nth-child(2),.steps-table-a td:nth-child(2){width:22%}
+.steps-table-a th:nth-child(3),.steps-table-a td:nth-child(3){width:15%}
+.steps-table-a th:nth-child(4),.steps-table-a td:nth-child(4){width:26%}
+.steps-table-a th:nth-child(5),.steps-table-a td:nth-child(5){width:22%}
+.steps-table-a th:nth-child(6),.steps-table-a td:nth-child(6){width:15%}
+/* Construction B: 7 columns — step, detector, budget, score, partial max, p (≤ bound), status */
+.steps-table-b th:nth-child(1),.steps-table-b td:nth-child(1){width:34px;text-align:center}
+.steps-table-b th:nth-child(2),.steps-table-b td:nth-child(2){width:17%}
+.steps-table-b th:nth-child(3),.steps-table-b td:nth-child(3){width:12%}
+.steps-table-b th:nth-child(4),.steps-table-b td:nth-child(4){width:18%}
+.steps-table-b th:nth-child(5),.steps-table-b td:nth-child(5){width:18%}
+.steps-table-b th:nth-child(6),.steps-table-b td:nth-child(6){width:14%}
+.steps-table-b th:nth-child(7),.steps-table-b td:nth-child(7){width:21%}
+.steps-table tr.hit td{background:rgba(255,59,48,.08)}
+.panel .display-md{font-size:22px;line-height:1.25;letter-spacing:-.25px}
+
+/* token-savings stat */
+.savings-stat{margin-top:22px;background:var(--surface-tile-3);border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--r-lg);padding:16px 20px}
+.savings-row{display:flex;align-items:baseline;gap:10px}
+.savings-num{font-family:var(--display);font-size:40px;font-weight:600;line-height:1;letter-spacing:-.5px}
+.savings-num.on{color:var(--green)}
+.savings-num.off{color:var(--body-muted)}
+.savings-label{font-size:13px;font-weight:600;letter-spacing:-.12px;color:var(--body-muted)}
+.savings-bar{height:6px;background:rgba(255,255,255,.12);border-radius:var(--pill);margin-top:14px;overflow:hidden}
+.savings-fill{height:100%;border-radius:var(--pill);transition:width .8s ease;background:var(--primary-on-dark)}
+.savings-sub{margin-top:10px;font-size:12px;letter-spacing:-.12px;color:var(--gray-soft)}
+
+/* marked text (Grammarly-style) */
+.marked-card{margin-top:34px;background:var(--canvas);color:var(--ink);border-radius:var(--r-lg);
+  padding:30px 34px;max-width:100%}
+.marked-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.marked-head .tagline{color:var(--ink)}
+.marked-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}
+.marked-legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;letter-spacing:-.12px;color:var(--ink-muted-48)}
+.marked-dot{width:10px;height:10px;border-radius:50%}
+.marked-body{margin-top:16px;max-height:420px;max-width:900px;overflow-y:auto;font-size:15px;line-height:1.65;
+  letter-spacing:-.2px;color:var(--ink-muted-80);border-top:1px solid var(--divider-soft);padding-top:16px;
+  white-space:pre-wrap;word-break:break-word}
+.marked-body mark{border-radius:3px;padding:0 2px;cursor:help}
+.mark-opener{background:rgba(255,149,0,.16);border-bottom:2px solid #ff9500}
+.mark-filler{background:rgba(0,113,227,.12);border-bottom:2px solid #0071e3}
+.mark-jargon{background:rgba(175,82,222,.14);border-bottom:2px solid #af52de}
+.mark-structure{background:rgba(255,59,48,.13);border-bottom:2px solid #ff3b30}
+.mark-meta{background:rgba(88,86,214,.13);border-bottom:2px solid #5856d6}
+.mark-passive{background:rgba(142,142,147,.16);border-bottom:2px solid #8e8e93}
+.mark-phrase{background:rgba(0,102,204,.11);border-bottom:2px solid #0066cc}
+.mark-emdash{background:rgba(255,204,0,.18);border-bottom:2px solid #d6a800}
+.badge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
+  font-size:11px;font-weight:600;letter-spacing:-.08px;border-radius:var(--pill);padding:4px 12px;
+  text-transform:uppercase;white-space:normal;overflow-wrap:normal;word-break:normal;
+  text-align:center;line-height:1.2;max-width:100%}
+.badge-alert{background:rgba(255,59,48,.18);color:#ff6961}
+.badge-clear{background:rgba(52,199,89,.15);color:#6ee7a0}
+.badge-step-alert{background:rgba(255,59,48,.18);color:#ff6961}
+.badge-step-ok{background:rgba(255,255,255,.1);color:var(--body-muted)}
+.badge-warn{background:rgba(255,149,0,.15);color:#ffb340}
+
+/* ── benchmark ─────────────────────────────────────────── */
+.bench-table-scroll{width:100%;margin-top:32px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.bench-table{width:100%;margin-top:0;border-collapse:collapse;font-size:14px;letter-spacing:-.224px;
+  background:var(--canvas);border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--hairline)}
+.bench-table th{font-size:12px;font-weight:600;letter-spacing:-.12px;color:var(--ink-muted-48);
+  text-transform:uppercase;text-align:left;padding:12px 18px;background:var(--canvas-parchment);border-bottom:1px solid var(--hairline)}
+.bench-table td{padding:14px 18px;border-bottom:1px solid var(--divider-soft);color:var(--ink-muted-80);font-variant-numeric:tabular-nums}
+.bench-table tr:last-child td{border-bottom:none}
+.bench-table td b{color:var(--ink);font-weight:600}
+.bench-note{margin-top:18px;width:100%;line-height:1.55;letter-spacing:-.224px}
+
+/* ── how it works ──────────────────────────────────────── */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:48px}
+.step{display:flex;flex-direction:column;gap:12px}
+.step-num{font-size:14px;font-weight:600;letter-spacing:-.224px;color:var(--primary)}
+.how-section{margin-top:64px}
+.route{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin-top:24px}
+.route-step{flex:1;min-width:150px;background:var(--canvas);border:1px solid var(--hairline);border-radius:11px;
+  padding:16px;text-align:center}
+.route-step b{display:block;font-size:17px;font-weight:600;letter-spacing:-.374px}
+.route-step span{display:block;font-size:12px;color:var(--ink-muted-48);margin-top:4px}
+.route-arrow{display:flex;align-items:center;color:var(--primary);font-size:22px;font-weight:300}
+.const-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:24px;margin-top:16px}
+.const-card h3{font-size:21px;font-weight:600;letter-spacing:.231px}
+.formula{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:14px;background:var(--canvas-parchment);
+  border:1px solid var(--hairline);border-radius:11px;padding:14px 18px;margin-top:12px;color:var(--ink-muted-80)}
+.formula b{color:var(--ink)}
+.how-table{width:100%;border-collapse:collapse;font-size:14px;letter-spacing:-.224px;
+  background:var(--canvas);border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--hairline);margin-top:16px}
+.how-table th{font-size:12px;font-weight:600;letter-spacing:-.12px;color:var(--ink-muted-48);
+  text-transform:uppercase;text-align:left;padding:12px 18px;background:var(--canvas-parchment);border-bottom:1px solid var(--hairline)}
+.how-table td{padding:14px 18px;border-bottom:1px solid var(--divider-soft);color:var(--ink-muted-80);font-variant-numeric:tabular-nums}
+.how-table tr:last-child td{border-bottom:none}
+.how-table td b{color:var(--ink);font-weight:600}
+.ok{color:var(--green);font-weight:600}
+.no{color:var(--red);font-weight:600}
+.calc-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
+.calc-input{font-family:var(--text);font-size:17px;padding:10px 16px;border:1px solid var(--hairline);
+  border-radius:var(--pill);width:180px;outline:none}
+.calc-input:focus{border-color:var(--primary-focus)}
+.calc-output{font-size:17px;font-weight:600;letter-spacing:-.374px;color:var(--ink)}
+.limits{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.limits li{padding-left:22px;position:relative}
+.limits li::before{content:"·";position:absolute;left:6px;color:var(--primary);font-weight:700}
+
+/* ── FAQ ───────────────────────────────────────────────── */
+.faq-item{border-bottom:1px solid var(--hairline)}
+.faq-q{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;
+  background:transparent;border:none;cursor:pointer;padding:20px 4px;font-family:var(--text);
+  font-size:17px;font-weight:600;letter-spacing:-.374px;color:var(--ink);line-height:1.3}
+.faq-q .caret{color:var(--primary);font-size:20px;font-weight:300;transition:transform .2s}
+.faq-item.open .caret{transform:rotate(90deg)}
+.faq-a{display:none;padding:0 4px 22px;font-size:15px;line-height:1.55;letter-spacing:-.2px;color:var(--ink-muted-80);max-width:760px}
+.faq-item.open .faq-a{display:block}
+.faq-a .mono{font-size:.92em}
+
+/* ── settings + help mode ───────────────────────────────── */
+.settings-modal{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.45);padding:24px}
+.settings-modal[hidden]{display:none}
+.settings-card{background:var(--canvas);border-radius:var(--r-lg);padding:26px 30px;max-width:440px;width:100%}
+.settings-head{display:flex;align-items:center;justify-content:space-between}
+.settings-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:var(--ink-muted-48);padding:4px 8px}
+.settings-close:hover{color:var(--ink)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:22px}
+.setting-text{flex:1}
+.switch{position:relative;display:inline-block;width:52px;height:30px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;border-radius:9999px;background:var(--hairline);cursor:pointer;transition:background .2s}
+.slider::before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;border-radius:50%;
+  background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch input:checked + .slider{background:var(--primary)}
+.switch input:checked + .slider::before{transform:translateX(22px)}
+
+.help-hot{position:fixed;z-index:60;width:22px;height:22px;border-radius:50%;background:var(--primary);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  cursor:pointer;animation:hotPulse 2.2s infinite}
+@keyframes hotPulse{0%{box-shadow:0 0 0 0 rgba(0,102,204,.45)}70%{box-shadow:0 0 0 9px rgba(0,102,204,0)}100%{box-shadow:0 0 0 0 rgba(0,102,204,0)}}
+.help-tip{position:fixed;z-index:65;width:330px;max-width:calc(100vw - 24px);background:var(--canvas);
+  border:1px solid var(--hairline);border-radius:var(--r-lg);padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.22)}
+.help-tip[hidden]{display:none}
+.help-tip-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.help-close{background:transparent;border:none;cursor:pointer;font-size:15px;color:var(--ink-muted-48);padding:2px 6px}
+.help-close:hover{color:var(--ink)}
+.help-math{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;
+  background:var(--canvas-parchment);border:1px solid var(--hairline);border-radius:8px;padding:10px 12px;
+  margin-top:10px;color:var(--ink-muted-80)}
+
+/* ── privacy consent ───────────────────────────────────── */
+.privacy-banner{position:fixed;z-index:80;left:24px;right:24px;bottom:24px;display:flex;
+  align-items:center;justify-content:space-between;gap:24px;background:rgba(29,29,31,.96);
+  color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:var(--r-lg);padding:18px 22px;
+  box-shadow:0 18px 50px rgba(0,0,0,.28);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.privacy-copy{max-width:680px}
+.privacy-title{font-size:15px;font-weight:600;letter-spacing:-.2px}
+.privacy-text{font-size:13px;line-height:1.45;letter-spacing:-.12px;color:#c9c9ce;margin-top:5px}
+.privacy-text a{color:#8ec8ff;text-decoration:underline}
+.privacy-actions{display:flex;align-items:center;gap:10px;flex:none}
+.privacy-actions .btn-secondary{color:#fff;border-color:rgba(255,255,255,.35);background:transparent}
+.privacy-actions .btn-primary{white-space:nowrap}
+.privacy-banner[hidden]{display:none}
+@media (max-width:640px){
+  .privacy-banner{left:12px;right:12px;bottom:12px;align-items:stretch;flex-direction:column;gap:14px;padding:18px}
+  .privacy-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .privacy-actions .btn{width:100%;min-height:44px;padding:10px 12px}
+}
+
+/* ── tour ──────────────────────────────────────────────── */
+.tour-dialog{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.45);padding:24px}
+.tour-dialog[hidden],.tour-popup[hidden],.tour-spot[hidden]{display:none}
+.tour-dialog-card{background:var(--canvas);border-radius:var(--r-lg);padding:32px;max-width:520px;width:100%}
+.tour-actions{display:flex;align-items:center;gap:12px}
+.tour-popup{position:fixed;z-index:75;width:380px;max-width:calc(100vw - 32px);background:var(--canvas);
+  border-radius:var(--r-lg);padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.28);border:1px solid var(--hairline)}
+.tour-head{display:flex;align-items:center;justify-content:space-between}
+.tour-progress{font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--primary);text-transform:uppercase}
+.tour-close{background:transparent;border:none;cursor:pointer;font-size:16px;color:var(--ink-muted-48);padding:4px 8px}
+.tour-close:hover{color:var(--ink)}
+.tour-spot{position:fixed;z-index:68;pointer-events:none;border-radius:11px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.38);border:2px solid var(--primary);
+  transition:all .25s ease}
+
+/* ── footer ────────────────────────────────────────────── */
+.footer{background:var(--canvas-parchment);color:var(--ink-muted-80);padding:64px 24px 48px}
+.footer-inner{max-width:980px;margin:0 auto}
+.footer-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;padding-bottom:32px;border-bottom:1px solid var(--hairline)}
+.footer-cols h4{font-size:14px;font-weight:600;letter-spacing:-.224px;color:var(--ink-muted-80);margin-bottom:12px}
+.footer-cols a{display:block;font-size:17px;font-weight:400;line-height:2.41;letter-spacing:0;color:var(--ink-muted-80);text-decoration:none}
+.footer-cols a:hover{color:var(--primary)}
+.legal{margin-top:24px;font-size:12px;font-weight:400;line-height:1.3;letter-spacing:-.12px;color:var(--ink-muted-48)}
+.legal p+p{margin-top:8px}
+
+/* ── limit simulations ──────────────────────────────────── */
+.limit-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
+.limit-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-lg);
+  padding:24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.limit-card .tagline{color:var(--ink)}
+.limit-card svg{width:100%;height:auto;border:1px solid var(--divider-soft);border-radius:11px;
+  background:var(--surface-pearl)}
+.sim-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-muted-80);letter-spacing:-.12px}
+.sim-controls input[type=range]{flex:1;min-width:100px;accent-color:var(--primary)}
+.sim-controls b{font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
+.sim-note{font-size:12px;color:var(--ink-muted-48);letter-spacing:-.12px;line-height:1.45;min-height:34px}
+@media (max-width:834px){.limit-grid{grid-template-columns:1fr}}
+
+/* ── entrance animations (How it Works) ─────────────────── */
+.anim-rise{opacity:0}
+.anim-rise.visible{animation:rise .55s cubic-bezier(.25,.8,.3,1) forwards}
+.anim-rise.done{opacity:1;transform:none;animation:none}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── hover animations ──────────────────────────────────── */
+.step{transition:transform .25s ease}
+.step:hover{transform:translateY(-3px)}
+.step:hover .step-num{color:var(--primary-focus)}
+.route-step{transition:border-color .2s ease,transform .25s ease}
+.route-step:hover{border-color:var(--primary-focus);transform:translateY(-2px)}
+.route-arrow{transition:color .2s ease}
+.route:hover .route-arrow{color:var(--primary-focus)}
+.const-card{transition:border-color .2s ease,transform .25s ease}
+.const-card:hover{border-color:var(--primary-focus);transform:translateY(-2px)}
+.how-table tbody tr{transition:background .15s ease}
+.how-table tbody tr:hover{background:var(--surface-pearl)}
+.limits li::before{transition:color .2s ease}
+.limits li:hover::before{color:var(--primary-focus)}
+.faq-q{transition:color .2s ease}
+.faq-q:hover{color:var(--primary)}
+@media (prefers-reduced-motion: reduce){
+  .anim-rise{opacity:1;transform:none;animation:none!important}
+  .step,.route-step,.const-card,.route-arrow,.how-table tbody tr,.faq-q{transition:none!important}
+  .step:hover,.route-step:hover,.const-card:hover{transform:none}
+}
+
+/* ── responsive layouts ────────────────────────────────── */
+/* Wide desktop: two result panels, generous reading width. */
+@media (min-width:1200px){
+  .tile-results .tile-inner{max-width:1320px}
+  .panel{padding:36px 40px}
+}
+
+/* Tablet / small desktop: panels stack so tables retain readable columns. */
+@media (max-width:1068px){
+  .panel-grid{grid-template-columns:1fr}
+  .panel{padding:30px 32px}
+}
+
+/* Tablet: navigation wraps instead of compressing controls into one row. */
+@media (max-width:834px){
+  .steps{grid-template-columns:1fr}
+  .footer-cols{grid-template-columns:1fr}
+  .sub-nav{height:auto;min-height:52px;padding:8px 12px;gap:8px;flex-wrap:wrap}
+  .tab-bar{order:1;flex:1;min-width:260px}
+  .sub-nav-right{order:2;gap:6px;margin-left:auto}
+  .sub-nav-chip{display:none}
+  .tab{font-size:13px;padding:9px 12px;min-height:36px}
+  .sub-nav-right .btn{min-height:36px;padding:9px 12px;font-size:13px}
+  .route{justify-content:center}
+  .how-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
+
+/* Phone: one-column reading flow, full-width actions, horizontally scrollable data. */
+@media (max-width:640px){
+  .tile{padding:44px 16px}
+  .tile-results{padding:40px 16px 72px}
+  .hero{gap:18px}
+  .hero-display{font-size:34px}
+  .lead{font-size:22px}
+  .input-tabs{width:100%;margin-top:4px}
+  .input-tab{flex:1;padding:10px 12px}
+  .input-card,.upload-card{padding:18px}
+  .input-card textarea{min-height:180px;font-size:16px}
+  .input-meta{align-items:flex-start;flex-direction:column;gap:6px}
+  .detect-row{align-items:stretch;flex-direction:column}
+  .detect-row .btn{width:100%}
+  .panel{padding:24px 20px}
+  .panel-grid{gap:18px}
+  .panel-head{align-items:flex-start;flex-direction:column}
+  .panel-head .badge{align-self:flex-start}
+  .steps-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .steps-table-a{min-width:560px}
+  .steps-table-b{min-width:650px}
+  .bench-table-scroll{margin-top:24px}
+  .bench-table{min-width:760px;white-space:nowrap}
+  .route{align-items:center;flex-direction:column;gap:6px}
+  .route-step{width:100%;min-width:0}
+  .route-arrow{font-size:20px;line-height:1;transform:rotate(90deg)}
+  .route:hover .route-arrow{transform:rotate(90deg)}
+  .limit-card{padding:20px}
+  .marked-card{padding:22px 20px}
+  .footer{padding:48px 16px 36px}
+}
+
+/* Small phones: keep the tabs usable and prevent action labels from clipping. */
+@media (max-width:480px){
+  .sub-nav{align-items:stretch}
+  .tab-bar{min-width:100%;width:100%}
+  .tab{flex:1;padding:9px 8px;font-size:12px}
+  .sub-nav-right{width:100%;margin-left:0;justify-content:flex-end}
+  .sub-nav-right .btn-secondary{flex:1}
+  .sub-nav-right .btn-primary{flex:1}
+  .hero-display{font-size:29px}
+  .lead{font-size:20px}
+  .savings-num{font-size:34px}
+  .slop-report{padding:20px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .input-tab,.chip,.btn,.progress-fill,.verdict-fill,.compare-fill{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- global nav -->
+<nav class="global-nav">
+  <a class="nav-logo" href="#screen">
+    <span class="nav-mark">S</span>
+    <span class="nav-name">Conformal Screening</span>
+  </a>
+  <div class="nav-status" id="nav-status">calibration <b id="nav-cal">…</b></div>
+</nav>
+
+<!-- sub-nav · tabs -->
+<div class="sub-nav">
+  <div class="tab-bar">
+    <button class="tab active" data-tab="screen" type="button">Screen</button>
+    <button class="tab" data-tab="how" type="button">How it Works</button>
+    <button class="tab" data-tab="faq" type="button">FAQ</button>
+  </div>
+  <div class="sub-nav-right">
+    <span class="sub-nav-chip" id="subnav-chip">…</span>
+    <button class="btn btn-secondary" id="btn-settings" type="button">Settings</button>
+    <button class="btn btn-secondary" id="btn-tour" type="button">Take the tour</button>
+    <button class="btn btn-primary" id="btn-detect-nav" type="button">Screen</button>
+  </div>
+</div>
+
+<!-- privacy preference prompt -->
+<aside class="privacy-banner" id="privacy-banner" hidden role="dialog" aria-live="polite" aria-label="Privacy preferences">
+  <div class="privacy-copy">
+    <div class="privacy-title">A small note about local storage</div>
+    <div class="privacy-text">
+      This local site does not use analytics or tracking cookies. It can store preferences such as Help mode and your selected model in this browser so the interface remembers them.
+      <a href="#faq" id="privacy-details">Learn more</a>
+    </div>
+  </div>
+  <div class="privacy-actions">
+    <button class="btn btn-secondary" id="privacy-essential" type="button">Continue without saving</button>
+    <button class="btn btn-primary" id="privacy-allow" type="button">Allow preferences</button>
+  </div>
+</aside>
+
+<!-- ============ TAB: SCREEN ============ -->
+<div class="tab-panel" id="tab-screen">
+
+  <section class="tile tile-light" id="detect">
+    <div class="tile-inner hero">
+      <h1 class="hero-display">Adaptive, error-controlled screening.</h1>
+      <p class="lead">Paste a passage. Prefix detectors run under a generative model, and conformal ranks decide, with a provable false-alert bound, whether to flag the document for review.</p>
+      <div class="input-tabs">
+        <button class="input-tab active" data-input="text" type="button">Paste text</button>
+        <button class="input-tab" data-input="file" type="button">Upload file</button>
+      </div>
+
+      <div class="input-panel" id="input-panel-text">
+        <div class="input-card">
+          <textarea id="text-input" placeholder="Paste the text you want to screen… (at least 20 words)"></textarea>
+          <div class="input-meta">
+            <span id="word-count">0 words</span>
+            <span>scored under GPT-2 at token budgets 128 / 256 / 512 / 1,024</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-panel" id="input-panel-file" hidden>
+      <div class="upload-card">
+        <div class="upload-drop" id="upload-drop">
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" hidden>
+          <p class="body">Drag a document here, or <button class="btn-link" id="btn-browse" type="button">browse</button> to upload.</p>
+          <p class="caption muted-light" style="margin-top:6px">Accepted: PDF, DOCX, TXT, MD · max 20 MB · text content only</p>
+        </div>
+        <div class="upload-ready" id="upload-ready" hidden>
+          <span class="file-chip" id="file-chip">…</span>
+          <button class="btn btn-primary" id="btn-screen-file" type="button">Screen file</button>
+          <button class="btn btn-secondary" id="btn-file-clear" type="button">Remove</button>
+        </div>
+        <div class="progress" id="file-progress" hidden>
+          <div class="progress-track"><div class="progress-fill" id="file-fill"></div></div>
+          <span class="progress-label" id="file-label"></span>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tile tile-parchment" id="constructions">
+    <div class="tile-inner">
+      <span class="eyebrow">Screening controls</span>
+      <h2 class="display-md" style="margin-top:8px">Screen the document</h2>
+      <p class="body muted-light" style="max-width:680px;margin-top:12px">
+        One scoring pass under the generative model feeds both constructions.
+        Run them together: each panel below reports its own verdict and
+        conformal evidence.
+      </p>
+      <div class="param-group" style="margin-top:40px">
+        <h3>Scoring model</h3>
+        <div class="chip-grid" data-group="model" id="model-chips"></div>
+        <p class="caption muted-light" id="model-hint">…</p>
+      </div>
+      <div class="param-group" style="margin-top:32px">
+        <h3>Detector family</h3>
+        <div class="chip-grid" data-group="bino">
+          <button class="chip selected" data-value="0">likelihood · rank · log-rank</button>
+          <button class="chip" data-value="1">+ contrasting model (Binoculars-style)</button>
+        </div>
+        <div class="chip-grid" data-group="fast" style="margin-top:12px">
+          <button class="chip selected" data-value="0">curvature off</button>
+          <button class="chip" data-value="1">+ Fast-DetectGPT curvature</button>
+        </div>
+        <p class="caption muted-light" id="bino-hint">…</p>
+      </div>
+      <div class="param-group" style="margin-top:32px">
+        <h3>False-alert level α</h3>
+        <div class="chip-grid" data-group="alpha">
+          <button class="chip" data-value="0.001">0.001</button>
+          <button class="chip" data-value="0.01">0.01</button>
+          <button class="chip selected" data-value="0.05">0.05</button>
+          <button class="chip" data-value="0.1">0.1</button>
+        </div>
+        <p class="caption muted-light" id="resolution-hint">…</p>
+      </div>
+      <div class="detect-row" style="margin-top:32px">
+        <button class="btn btn-store-hero" id="btn-detect" type="button">Screen: both constructions</button>
+        <span class="caption muted-light">P(any alert under the null) ≤ α, on each inspection path.</span>
+      </div>
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <span class="progress-label" id="progress-label"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="tile tile-dark tile-results" id="results" hidden>
+    <div class="tile-inner">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span class="eyebrow" style="color:var(--body-muted)">Results: one document, two constructions</span>
+        <button class="btn btn-secondary" id="btn-marked" type="button" hidden>Show AI-phrasing highlights</button>
+      </div>
+      <p class="result-source" id="result-source" hidden></p>
+      <div class="panel-grid">
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="tagline">Construction A</h3>
+            <span class="badge" id="badge-A">…</span>
+          </div>
+          <p class="panel-desc">Registered family · weighted conformal ranks · union bound</p>
+          <div class="verdict-row">
+            <span class="verdict-dot" id="dot-A"></span>
+            <h4 class="display-md" id="label-A">…</h4>
+          </div>
+          <p class="verdict-note" id="note-A"></p>
+          <div class="savings-stat">
+            <div class="savings-row">
+              <span class="savings-num off" id="savings-num-A">0%</span>
+              <span class="savings-label">tokens saved vs full budget (baseline)</span>
+            </div>
+            <div class="savings-bar"><div class="savings-fill" id="savings-fill-A" style="width:100%"></div></div>
+            <div class="savings-sub" id="savings-sub-A"></div>
+          </div>
+          <div class="results-meta" id="meta-A"></div>
+          <table class="steps-table steps-table-a" id="table-A">
+            <thead><tr>
+              <th>Step</th><th>Detector</th><th>Budget</th><th>Score</th><th>p ≤ bound</th><th>Status</th>
+            </tr></thead>
+            <tbody id="body-A"></tbody>
+          </table>
+          <p class="panel-foot fine-print" id="foot-A"></p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3 class="tagline">Construction B</h3>
+            <span class="badge" id="badge-B">…</span>
+          </div>
+          <p class="panel-desc">Complete-path calibration · early stopping along the route</p>
+          <div class="verdict-row">
+            <span class="verdict-dot" id="dot-B"></span>
+            <h4 class="display-md" id="label-B">…</h4>
+          </div>
+          <p class="verdict-note" id="note-B"></p>
+          <div class="savings-stat">
+            <div class="savings-row">
+              <span class="savings-num on" id="savings-num-B">0%</span>
+              <span class="savings-label">tokens saved by early stopping</span>
+            </div>
+            <div class="savings-bar"><div class="savings-fill" id="savings-fill-B" style="width:100%"></div></div>
+            <div class="savings-sub" id="savings-sub-B"></div>
+          </div>
+          <div class="results-meta" id="meta-B"></div>
+          <table class="steps-table steps-table-b" id="table-B">
+            <thead><tr>
+              <th>Step</th><th>Detector</th><th>Budget</th><th>Score</th><th>Partial max</th><th>p ≤ bound</th><th>Status</th>
+            </tr></thead>
+            <tbody id="body-B"></tbody>
+          </table>
+          <p class="panel-foot fine-print" id="foot-B"></p>
+        </div>
+
+      </div>
+
+      <!-- marked text (Grammarly-style) -->
+      <div class="marked-card" id="marked-card" hidden>
+        <div class="marked-head">
+          <h3 class="tagline">AI-phrasing highlights</h3>
+          <button class="btn btn-secondary" id="btn-marked-close" type="button">Close</button>
+        </div>
+        <div class="marked-legend" id="marked-legend" style="margin-top:14px"></div>
+        <div class="marked-body" id="marked-body"></div>
+      </div>
+
+      <!-- slop report -->
+      <div class="slop-report" id="slop-report" hidden>
+        <div class="panel-head">
+          <h3 class="tagline">Style markers: stop-slop lexicon</h3>
+          <span class="badge" id="slop-badge">…</span>
+        </div>
+        <p class="slop-desc" id="slop-line"></p>
+        <div class="results-meta slop-chips" id="slop-chips"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="tile tile-parchment" id="benchmark">
+    <div class="tile-inner">
+      <span class="eyebrow">Empirical check</span>
+      <h2 class="display-md" style="margin-top:8px">Benchmark on Binoculars data</h2>
+      <p class="body muted-light" style="max-width:680px;margin-top:12px">
+        Run both constructions over paired human/AI documents from the Binoculars paper corpora
+        (Hans et al., ICML 2024). The human alert rate should sit near α: that is the marginal
+        false-alert control, and the AI alert rate is the observed detection power.
+      </p>
+      <div class="param-group" style="margin-top:40px">
+        <h3>Corpus · falcon-7b generations</h3>
+        <div class="chip-grid" data-group="bench-corpus">
+          <button class="chip selected" data-value="ccnews">cc_news</button>
+          <button class="chip" data-value="cnn">cnn</button>
+          <button class="chip" data-value="pubmed">pubmed</button>
+          <button class="chip" data-value="binoc-all">all corpora</button>
+          <button class="chip" data-value="raid">RAID · deck</button>
+          <button class="chip" data-value="detectrl">DetectRL-X · deck</button>
+          <button class="chip" data-value="realdet">RealDet · deck</button>
+        </div>
+        <p class="caption muted-light" id="bench-corpus-note">
+          Deck-recommended corpora: RAID (Dugan et al. 2024), DetectRL-X (Wu et al. 2024), RealDet (Zhu et al. 2025): eligible English subsets, after access and license checks.
+        </p>
+      </div>
+      <div class="param-group" style="margin-top:32px">
+        <h3>Documents per class</h3>
+        <div class="chip-grid" data-group="bench-n">
+          <button class="chip" data-value="10">10</button>
+          <button class="chip selected" data-value="20">20</button>
+          <button class="chip" data-value="40">40</button>
+        </div>
+      </div>
+      <div class="detect-row" style="margin-top:32px">
+        <button class="btn btn-store-hero" id="btn-bench" type="button">Run benchmark</button>
+        <span class="caption muted-light" id="bench-hint"></span>
+      </div>
+      <div class="progress" id="bench-progress" hidden>
+        <div class="progress-track"><div class="progress-fill" id="bench-fill"></div></div>
+        <span class="progress-label" id="bench-label"></span>
+      </div>
+      <div class="bench-table-scroll">
+        <table class="bench-table" id="bench-table" hidden>
+          <thead><tr><th>Construction</th><th>α</th><th>Human alert rate</th><th>AI alert rate</th><th>Mean tokens inspected (saved)</th><th>n</th></tr></thead>
+          <tbody id="bench-body"></tbody>
+        </table>
+      </div>
+      <p class="bench-note caption muted-light" id="bench-note"></p>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ TAB: HOW IT WORKS ============ -->
+<div class="tab-panel" id="tab-how" hidden>
+  <section class="tile tile-parchment">
+    <div class="tile-inner">
+      <span class="eyebrow">Method</span>
+      <h2 class="display-md" style="margin-top:8px">How it works</h2>
+
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1 · Calibrate</span>
+          <h3 class="tagline">Exchangeable humans</h3>
+          <p class="body muted-light">Human-written documents are scored once, offline, under the chosen generative model. Development statistics fix every transformation before calibration begins.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2 · Rank</span>
+          <h3 class="tagline">Conservative conformal p</h3>
+          <p class="body muted-light">Each score gets p = (1 + #{calibration ≥ test}) / (m + 1): the tie-conservative upper-tail rank. No independence among tokens is assumed.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3 · Control</span>
+          <h3 class="tagline">Pathwise guarantee</h3>
+          <p class="body muted-light">A: a union bound over a registered family permits score-dependent action selection. B: a calibrated complete-path maximum permits early stopping without splitting the budget.</p>
+        </div>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">The inspection route</h2>
+        <p class="body muted-light" style="max-width:680px;margin-top:12px">
+          A policy reads the first min(b, L) tokens of the document, chooses a detector
+          at each budget, and stops at a valid alert, a development-fixed futility rule,
+          or the resource cap.
+        </p>
+        <div class="route">
+          <div class="route-step"><b>128 tokens</b><span>low-cost action</span></div>
+          <div class="route-arrow">→</div>
+          <div class="route-step"><b>256 tokens</b><span>extend or switch</span></div>
+          <div class="route-arrow">→</div>
+          <div class="route-step"><b>512 tokens</b><span>extend or switch</span></div>
+          <div class="route-arrow">→</div>
+          <div class="route-step"><b>1,024 tokens</b><span>budget cap</span></div>
+        </div>
+        <p class="caption muted-light" style="margin-top:12px">
+          Current route: likelihood @ 128 → likelihood @ 256 → rank @ 512 → log-rank @ 1,024.
+          Detector family: likelihood, rank, log-rank, and the stop-slop lexicon (plus a
+          Binoculars-style contrasting-model score and Fast-DetectGPT conditional curvature when enabled).
+          DetectGPT T5-perturbation curvature remains a planned addition per the proposal's operational protocol;
+          policies may skip registered actions.
+        </p>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">The two constructions</h2>
+
+        <div class="const-card">
+          <h3>Construction A: allocate error across actions</h3>
+          <p class="body muted-light" style="margin-top:8px">
+            Weighted Bonferroni testing over a registered family of prefix–detector
+            scores S<sub>a</sub>. Each action gets its own error share; a union bound
+            protects whichever subset is executed.
+          </p>
+          <div class="formula">
+            p<sub>a</sub>(X) = (1 + Σ<sub>i</sub> 1{S<sub>a</sub>(H<sub>i</sub>) ≥ S<sub>a</sub>(X)}) / (m+1) &nbsp;&nbsp;·&nbsp;&nbsp; alert if <b>p<sub>a</sub>(X) ≤ α·w<sub>a</sub></b>
+          </div>
+          <p class="caption muted-light" style="margin-top:10px">
+            w<sub>a</sub> are fixed before calibration with Σ w<sub>a</sub> ≤ 1. Choice of executed
+            actions may use observed scores or ranks; the family and weights are frozen.
+          </p>
+        </div>
+
+        <div class="const-card">
+          <h3>Construction B: calibrate the complete path</h3>
+          <p class="body muted-light" style="margin-top:8px">
+            One calibrated scalar instead of an allocation: the maximum of the
+            development-fixed route, M<sub>π</sub>(X). Partial-path maxima are always
+            ≤ the complete maximum, so stopping early is free.
+          </p>
+          <div class="formula">
+            M<sub>π</sub>(X) = max<sub>t</sub> g<sub>a<sub>t</sub></sub>{S<sub>a<sub>t</sub></sub>(X)} &nbsp;&nbsp;·&nbsp;&nbsp; alert if <b>p<sub>t</sub><sup>path</sup>(X) ≤ α</b>
+          </div>
+          <p class="caption muted-light" style="margin-top:10px">
+            Failures are sentineled: S<sub>a</sub> = −∞ and g<sub>a</sub>(−∞) = −∞, so a
+            failed action adds no alert evidence. Complete calibration routes are computed
+            with alert-based stopping disabled.
+          </p>
+        </div>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">Calibration counts</h2>
+        <p class="body muted-light" style="max-width:680px;margin-top:12px">
+          The smallest deterministic conformal rank is 1/(m+1). These counts permit
+          rejection on the rank grid: useful detection power may require more data.
+        </p>
+        <table class="how-table" id="counts-table">
+          <thead><tr><th>Nominal α</th><th id="counts-head">A · equal allocations</th><th>B · one path rank</th></tr></thead>
+          <tbody id="counts-body"></tbody>
+        </table>
+        <p class="caption muted-light" style="margin-top:12px" id="counts-note"></p>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">Independent audit</h2>
+        <p class="body muted-light" style="max-width:680px;margin-top:12px">
+          With zero false alerts in N<sub>0</sub> independent human documents, the one-sided
+          95% upper confidence limit on the deployment false-alert probability is
+          U<sub>0.95</sub> = 1 − 0.05<sup>1/N₀</sup> (Clopper–Pearson).
+        </p>
+        <div class="calc-row">
+          <input class="calc-input" id="audit-n" type="number" min="1" value="100" placeholder="N₀">
+          <button class="btn btn-secondary" id="audit-go" type="button">Compute</button>
+          <span class="calc-output" id="audit-out">…</span>
+        </div>
+        <p class="caption muted-light" style="margin-top:12px">
+          For U<sub>0.95</sub> &lt; 0.001 the requirement is N<sub>0</sub> ≥ 2,995 zero-error
+          observations. The 95% statement concerns coverage over repeated independent audits.
+        </p>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">Limits and responsible use</h2>
+        <p class="body muted-light" style="max-width:760px;margin-top:12px">
+          The guarantee is real, but it is bounded. These four simulations show exactly where it stops holding.
+        </p>
+        <div class="limit-grid">
+
+          <div class="limit-card">
+            <h3 class="tagline">1 · Distribution shift</h3>
+            <p class="body muted-light" style="font-size:15px">The guarantee holds for the calibration population. A new human population with distance δ shifts the bound to α + TV(P₀, P̃₀), and the empirical FPR follows it.</p>
+            <div class="sim-controls">
+              <span>shift δ</span>
+              <input type="range" id="ds-delta" min="0" max="2" step="0.05" value="0.5">
+              <b id="ds-out">…</b>
+            </div>
+            <svg id="ds-plot" viewBox="0 0 420 210" role="img" aria-label="Distribution shift: simulated FPR vs α plus TV bound"></svg>
+            <p class="sim-note" id="ds-note"></p>
+          </div>
+
+          <div class="limit-card">
+            <h3 class="tagline">2 · Subgroups</h3>
+            <p class="body muted-light" style="font-size:15px">A pooled marginal bound does not protect a shifted subgroup. Drag the subgroup's shift and its share of the test stream: the subgroup FPR clears α while the pooled FPR stays near it.</p>
+            <div class="sim-controls">
+              <span>subgroup shift</span>
+              <input type="range" id="sg-delta" min="0" max="2" step="0.05" value="0.6">
+              <span>share π</span>
+              <input type="range" id="sg-pi" min="0" max="1" step="0.05" value="0.3">
+              <b id="sg-out">…</b>
+            </div>
+            <svg id="sg-plot" viewBox="0 0 420 210" role="img" aria-label="Subgroup simulation: pooled FPR vs subgroup FPR"></svg>
+            <p class="sim-note" id="sg-note"></p>
+          </div>
+
+          <div class="limit-card">
+            <h3 class="tagline">3 · Repeated deployment</h3>
+            <p class="body muted-light" style="font-size:15px">One-document control does not cover a collection. Screening K independent documents at level α gives a false-alert probability of 1 − (1 − α)^K across the set.</p>
+            <div class="sim-controls">
+              <span>documents K</span>
+              <input type="range" id="rd-k" min="1" max="50" step="1" value="10">
+              <span>α</span>
+              <input type="range" id="rd-alpha" min="0.01" max="0.1" step="0.005" value="0.05">
+              <b id="rd-out">…</b>
+            </div>
+            <svg id="rd-plot" viewBox="0 0 420 210" role="img" aria-label="Repeated deployment: family-wise error vs number of documents"></svg>
+            <p class="sim-note" id="rd-note"></p>
+          </div>
+
+          <div class="limit-card">
+            <h3 class="tagline">4 · Interpretation</h3>
+            <p class="body muted-light" style="font-size:15px">A conformal rank is a p-value against the human-reference null, not a posterior probability of AI authorship. Drag the score: the two curves diverge.</p>
+            <div class="sim-controls">
+              <span>score x</span>
+              <input type="range" id="ip-x" min="-2.5" max="3" step="0.01" value="1.96">
+              <span>prior π</span>
+              <input type="range" id="ip-pi" min="0.02" max="0.5" step="0.02" value="0.1">
+              <span>alt μ</span>
+              <input type="range" id="ip-mu" min="0.5" max="3" step="0.1" value="2">
+              <b id="ip-out">…</b>
+            </div>
+            <svg id="ip-plot" viewBox="0 0 420 210" role="img" aria-label="Interpretation: conformal p-value vs posterior probability"></svg>
+            <p class="sim-note" id="ip-note"></p>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">About this tool</h2>
+        <p class="body muted-light" style="max-width:760px;margin-top:12px">
+          Two conformal constructions for adaptive within-document screening. Construction A registers a finite prefix–detector family, allocates α across weighted conformal ranks, and protects any executed subset by union bound. Construction B calibrates the complete-path maximum of a development-fixed route, so partial-path maxima are bounded by the calibrated maximum and early stopping is free. Both control the marginal probability of any false alert at level α under document-level exchangeability. Proposal stage: the empirical power and cost study remains to be conducted; this interface is the proof of concept.
+        </p>
+        <p class="caption muted-light" style="margin-top:12px">
+          DetectGPT · Mitchell, Lee, Khazatsky, Manning &amp; Finn, Stanford CRFM, 2023 · Binoculars · Hans, Schwarzschild, Cherepanova, Kazemi, Saha, Goldblum, Geiping &amp; Goldstein, UMD, ICML 2024 (evaluation corpora).
+        </p>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<!-- ============ TAB: FAQ ============ -->
+<div class="tab-panel" id="tab-faq" hidden>
+  <section class="tile tile-parchment">
+    <div class="tile-inner">
+      <span class="eyebrow">FAQ</span>
+      <h2 class="display-md" style="margin-top:8px">Frequently asked questions</h2>
+
+      <div style="margin-top:32px">
+
+        <div class="faq-item open">
+          <button class="faq-q" type="button">What does this tool do?<span class="caret">›</span></button>
+          <div class="faq-a">It screens one document against a specified human-reference population using two conformal constructions over prefix–detector scores. The output is a decision: <i>flag for review</i> or <i>no alert at this budget</i>, with a provable marginal bound on any false alert: P(any alert under the null) ≤ α.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What is the proof of concept here?<span class="caret">›</span></button>
+          <div class="faq-a">The proposal's analytic results are implemented as a working system: the calibration pipeline (development/calibration split, frozen transformations, futility rule), both constructions, and an empirical benchmark over the Binoculars paper corpora. Verified behaviors: human alert rates track α under same-domain calibration; AI-generated documents produce lower conformal p-values and alert at the promised level. What remains is the proposal's evaluation study: matched-power comparisons against fixed policies and the cost profiling of the six-month plan. This interface is the executable proof of concept of the theory.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What counts as a false alert?<span class="caret">›</span></button>
+          <div class="faq-a">A flag for review when the document is human-written relative to the reference population. The guarantee is marginal over calibration data, the new null document, and policy randomness: it does not certify any particular calibration set or subgroup. An alert concerns departure from the human reference; it does not by itself establish AI authorship or misconduct.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why conformal ranks instead of a fixed threshold like Binoculars' 0.853?<span class="caret">›</span></button>
+          <div class="faq-a">Fixed thresholds are tuned to specific models and datasets and carry no finite-sample guarantee. A conformal rank adapts the boundary to the calibration sample and gives a finite-sample guarantee under exchangeability, with no assumption of token independence. Detector families are interchangeable: a Binoculars-style contrasting score is one of the available detectors, and DetectGPT-class curvature scores could enter the same registered family.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What is Construction A?<span class="caret">›</span></button>
+          <div class="faq-a">Weighted Bonferroni testing over a registered family of prefix–detector actions. Each action a gets a conformal p-value p<sub>a</sub> = (1 + #{calibration ≥ test})/(m+1) and its own error allocation α·w<sub>a</sub> with fixed weights summing to ≤ 1. Alert if any executed action satisfies p<sub>a</sub> ≤ α·w<sub>a</sub>. The union bound protects score-dependent selection within the family. Its cost: with the current 16 equal allocations (4 detectors × 4 budgets), rejection at α = 0.01 needs m ≥ 1,599; the proposal's 12-action prototype needs m ≥ 1,199.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What is Construction B?<span class="caret">›</span></button>
+          <div class="faq-a">Calibration of one scalar: the complete-path maximum M<sub>π</sub>(X) of a development-fixed route. Since every partial-path maximum is ≤ the complete maximum, the terminal conformal rank protects early stopping without splitting the error budget. Alert at the first executed action with p<sub>t</sub><sup>path</sup> ≤ α. Needs only m ≥ 99 at α = 0.01, far fewer calibration documents than A.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What do the calibration counts mean?<span class="caret">›</span></button>
+          <div class="faq-a">They are rank-feasibility minima: the smallest conformal rank is 1/(m+1), so rejection requires m ≥ ⌈1/(α·w<sub>a</sub>)⌉ − 1 for A and m ≥ ⌈1/α⌉ − 1 for B. Meeting the count permits rejection on the rank grid; it does not guarantee useful detection power: a score must also actually attain the minimum rank. The counts table in "How it Works" shows whether the current calibration m satisfies them.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What is the audit requirement?<span class="caret">›</span></button>
+          <div class="faq-a">With zero false alerts in N<sub>0</sub> independent human audit documents, the one-sided 95% Clopper–Pearson upper limit is U = 1 − 0.05<sup>1/N₀</sup>. For U &lt; 0.001 you need at least 2,995 zero-error observations. This is a fixed-sample audit statement: outcome-dependent stopping needs a sequential confidence procedure.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why not treat tokens as independent samples?<span class="caret">›</span></button>
+          <div class="faq-a">A token budget is not a sample size. The exchangeable units are documents; tokens within a document are dependent, and the constructions explicitly allow arbitrary dependence. Treating prefixes of one document as separate calibration units would require a different exchangeability argument. Oracle sample-complexity bounds (e.g., the Hoeffding budget of the proposal) are illustrations for independent scores, not token-count guarantees.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why does the same text alert at α = 0.1 but not at α = 0.01?<span class="caret">›</span></button>
+          <div class="faq-a">The conformal p-value is a single number for the document; the decision rule is p ≤ α. The same p-value crosses a looser bound and clears a stricter one: that is calibration working as intended, and why the interface always shows the p-value alongside the bound.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Which data are used, and why these corpora?<span class="caret">›</span></button>
+          <div class="faq-a">Calibration and evaluation follow the proposal's data design: separate development, calibration, and held-out evaluation. Human calibration documents come from IMDB reviews, the Binoculars paper corpora (cc_news / cnn / pubmed), or the deck-recommended corpora: <b>RealDet</b> (Zhu et al., ACL 2025; 15 domains, bilingual, our default calibration corpus), <b>RAID</b> (Dugan et al., ACL 2024; clean rows, attack = none), and <b>DetectRL-X</b> (Wu et al., NeurIPS 2024; English paired rows). All three are downloaded and cached locally on first use, in eligible English subsets. Duplicates and paraphrase lineages should be grouped before splitting; the benchmark offsets past calibration documents so development/calibration/evaluation never overlap on the same corpus.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">How do I use the recommended corpora for the study?<span class="caret">›</span></button>
+          <div class="faq-a">Run the server with the recommended calibration corpus: <span class="mono">python app.py --corpus realdet</span> (RAID and DetectRL-X are equally valid; the MCP paper found RealDet calibration the most stable across test sets). Use the benchmark panel to evaluate on any corpus: the deck's matched-error comparators and the ≥ 20% cost criterion are reported directly in the cost column.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Which models and detectors are used?<span class="caret">›</span></button>
+          <div class="faq-a">The scoring model is selectable in the Screen tab: gpt2, gpt2-medium, gpt2-large, Qwen2.5-1.5B, Pythia-1.4B, or SmolLM2-1.7B, each with its own cached calibration (first use builds it, ~1–4 minutes). The detector family is likelihood, rank, and log-rank, with an optional Binoculars-style contrasting-model detector (observer vs. performer) and an optional Fast-DetectGPT conditional-curvature detector (reference/scoring pair, analytic discrepancy). The constructions are detector-agnostic; DetectGPT T5-perturbation curvature remains a planned addition for the evaluation study. Human calibration corpora: IMDB reviews or the Binoculars cc_news / cnn / pubmed news corpora.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why wasn't my Gemini/ChatGPT text flagged?<span class="caret">›</span></button>
+          <div class="faq-a">Likelihood-based scores under a small model treat frontier-model prose as nearly human: GPT-2-class scores give Gemini-style text p-values around 0.3–0.9. The conformal constructions guarantee false-alert control, not detection of every generator; power is precisely what the proposal's evaluation study must measure. In practice, the strongest available configuration for frontier text is the contrasting-model detector (gpt2 observer vs. gpt2-medium performer) with Construction A: it drives Gemini-style text to p ≈ 0.015, near the α = 0.1 boundary, and stronger scoring models help modestly. If the bound holds at your chosen α and the text stays under it, the procedure reports insufficient evidence, which is the honest output for text the scores cannot separate.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why did the benchmark show human alert rates above α?<span class="caret">›</span></button>
+          <div class="faq-a">Two reasons, both visible in the data. Small samples scatter around α (n = 10–20). And cross-domain evaluation: calibrating on one corpus, testing on another, violates the null, turning the bound into α + TV(P₀, P̃₀), the distribution-shift bound of the proposal. Same-domain calibration (calibrate and benchmark on the same corpus) makes human rates track α.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Is a conformal rank a probability of AI authorship?<span class="caret">›</span></button>
+          <div class="faq-a">No. A conformal rank is a p-value against the human-reference null: it measures departure from the calibration population, not the posterior probability of AI authorship. That is why the interface reports <i>flag for review</i> and <i>insufficient evidence</i> rather than a percentage.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why doesn't the tool multiply ranks or build e-processes?<span class="caret">›</span></button>
+          <div class="faq-a">Marginal conformal validity does not imply the conditional supermartingale property needed for betting-style sequential inference: e.g., U ~ Unif(0,1) is a valid p-value yet E(1/U) = ∞, and dependence between successive factors requires a separate argument. The theory deliberately constructs no e-process and justifies no products of transformed ranks: stopping control comes from the complete-path containment instead. See the paper appendix.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">How do I run this with different settings?<span class="caret">›</span></button>
+          <div class="faq-a"><span class="mono">python app.py --base-model Qwen/Qwen2.5-1.5B --corpus cnn --binoculars --m 260</span>. Calibration caches are per (model, corpus, detector set, m) and rebuild automatically when the configuration changes. The audit bound, calibration counts, and both constructions can also be run from the CLI: <span class="mono">python conformal.py --screen file.txt --construction both</span>.</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- settings modal -->
+<div class="settings-modal" id="settings-modal" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="settings-card">
+    <div class="settings-head">
+      <h3 class="tagline" id="settings-title">Settings</h3>
+      <button class="settings-close" id="settings-close" type="button" aria-label="Close settings">✕</button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-text">
+        <b class="caption-strong" style="font-size:15px">Help mode</b>
+        <p class="caption muted-light" style="margin-top:4px">Blue hotspots with process and mathematics explanations. On by default for first-time users.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="help-toggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="fine-print muted-light" style="margin-top:18px">Preferences are saved locally in this browser.</p>
+  </div>
+</div>
+
+<!-- help tooltip -->
+<div class="help-tip" id="help-tip" hidden>
+  <div class="help-tip-head">
+    <h5 id="help-tip-title" style="font-size:15px;font-weight:600;letter-spacing:-.25px"></h5>
+    <button class="help-close" id="help-tip-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <p class="body muted-light" id="help-tip-process" style="font-size:13.5px;margin-top:8px;line-height:1.5"></p>
+  <div class="help-math" id="help-tip-math"></div>
+</div>
+
+<!-- tour: consent dialog -->
+<div class="tour-dialog" id="tour-consent" hidden role="dialog" aria-modal="true" aria-labelledby="tour-consent-title">
+  <div class="tour-dialog-card">
+    <span class="eyebrow">Guided walkthrough</span>
+    <h3 class="tagline" id="tour-consent-title" style="margin-top:8px">Explore the screener in about two minutes</h3>
+    <p class="body muted-light" style="margin-top:12px">
+      A short, self-paced tour of the Screen tab. By the end you will be able to:
+    </p>
+    <ul class="limits" style="margin-top:8px">
+      <li>paste a document and run both conformal constructions;</li>
+      <li>choose the scoring model and detector family that fit the text;</li>
+      <li>read each verdict panel, including how many tokens early stopping saved;</li>
+      <li>verify the method on the Binoculars benchmark, and find the reference material.</li>
+    </ul>
+    <div class="tour-actions" style="margin-top:24px">
+      <button class="btn btn-secondary" id="tour-later" type="button">Not now</button>
+      <button class="btn btn-primary" id="tour-start" type="button">Start the tour</button>
+    </div>
+    <p class="fine-print muted-light" style="margin-top:14px">You can leave anytime: press Esc or the ✕ button. The tour never runs a screening without you.</p>
+  </div>
+</div>
+
+<!-- tour: step popup + spotlight -->
+<div class="tour-popup" id="tour-popup" hidden role="dialog" aria-modal="true" aria-labelledby="tour-title">
+  <div class="tour-popup-card">
+    <div class="tour-head">
+      <span class="tour-progress" id="tour-progress">Step 1 of 8</span>
+      <button class="tour-close" id="tour-skip" type="button" aria-label="Exit tour">✕</button>
+    </div>
+    <h4 id="tour-title" style="font-size:17px;font-weight:600;letter-spacing:-.374px;margin-top:10px"></h4>
+    <p class="body muted-light" id="tour-body" style="font-size:15px;margin-top:8px"></p>
+    <div class="tour-actions" style="margin-top:20px">
+      <button class="btn btn-secondary" id="tour-prev" type="button" hidden>Back</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-primary" id="tour-next" type="button">Next</button>
+    </div>
+  </div>
+</div>
+<div class="tour-spot" id="tour-spot" hidden></div>
+
+<!-- footer -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-cols">
+      <div>
+        <h4>Method</h4>
+        <a href="https://arxiv.org/abs/2301.11305" target="_blank" rel="noopener">DetectGPT paper</a>
+        <a href="https://github.com/eric-mitchell/detect-gpt" target="_blank" rel="noopener">Reference implementation</a>
+        <a href="https://arxiv.org/abs/2401.12070" target="_blank" rel="noopener">Binoculars paper</a>
+      </div>
+      <div>
+        <h4>Local setup</h4>
+        <a href="#" onclick="return false">Scoring model · <span id="foot-model">…</span></a>
+        <a href="#" onclick="return false">Corpus · <span id="foot-cal">…</span></a>
+        <a href="#" onclick="return false">Device · <span id="foot-device">…</span></a>
+      </div>
+      <div>
+        <h4>Run</h4>
+        <a href="#" onclick="return false">Calibration is cached to disk</a>
+        <a href="#" onclick="return false">One screening at a time</a>
+        <a href="#" onclick="return false">Model loads on first request</a>
+      </div>
+      </div>
+    </div>
+</footer>
+
+<script>
+const LEVELS = { alert:{color:'#ff3b30'}, clear:{color:'#34c759'} };
+const STATE = { alpha:0.05, model:'gpt2', binoculars:false, fast:false, running:false, jobId:null };
+const BENCH = { corpus:'ccnews', n:20 };
+const $ = id => document.getElementById(id);
+const MODEL_LABELS = {
+  'gpt2':'gpt2', 'gpt2-medium':'gpt2-medium', 'gpt2-large':'gpt2-large',
+  'Qwen/Qwen2.5-1.5B':'Qwen 1.5B', 'EleutherAI/pythia-1.4b':'Pythia 1.4B',
+  'HuggingFaceTB/SmolLM2-1.7B':'SmolLM2 1.7B',
+};
+
+/* ── privacy preference prompt ── */
+const privacyChoice = localStorage.getItem('conformal-privacy-choice');
+if(!privacyChoice) $('privacy-banner').hidden = false;
+function closePrivacy(choice){
+  localStorage.setItem('conformal-privacy-choice', choice);
+  $('privacy-banner').hidden = true;
+}
+$('privacy-allow').addEventListener('click', ()=>closePrivacy('allowed'));
+$('privacy-essential').addEventListener('click', ()=>closePrivacy('essential'));
+$('privacy-details').addEventListener('click', ()=>{
+  $('privacy-banner').hidden = true;
+  showTab('faq');
+});
+
+/* ── configurator lock: no chip clicks while any job is running ── */
+let configLocks = 0;
+let calibrationLocked = false;
+function lockConfig(){ configLocks += 1; applyConfigLock(); }
+function unlockConfig(){ configLocks = Math.max(0, configLocks - 1); applyConfigLock(); }
+function applyConfigLock(){
+  const locked = configLocks > 0;
+  document.querySelectorAll('.chip-grid .chip').forEach(c=>{ c.disabled = locked; });
+}
+function lockWhileCalibrating(status){
+  const notReady = status !== 'ready';
+  if(notReady && !calibrationLocked){ calibrationLocked = true; lockConfig(); }
+  if(!notReady && calibrationLocked){ calibrationLocked = false; unlockConfig(); }
+  ['btn-detect','btn-detect-nav','btn-bench','btn-screen-file'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = (configLocks > 0);
+  });
+}
+
+/* ── tabs ── */
+const TABS = ['screen', 'how', 'faq'];
+function showTab(name){
+  if(!TABS.includes(name)) name = 'screen';
+  TABS.forEach(t=>{
+    $(`tab-${t}`).hidden = (t !== name);
+    document.querySelector(`.tab[data-tab="${t}"]`).classList.toggle('active', t === name);
+  });
+  history.replaceState(null, '', `#${name}`);
+}
+function applyHash(){ showTab((location.hash || '#screen').replace('#','')); }
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>showTab(t.dataset.tab));
+});
+window.addEventListener('hashchange', applyHash);
+
+/* ── status ── */
+function applyStatus(s){
+  const c = s.calibration;
+  const calTxt = c.status === 'ready' ? `${c.m} docs ✓` : c.status;
+  $('nav-cal').textContent = calTxt;
+  $('subnav-chip').textContent = `${MODEL_LABELS[c.model] || c.model} · ${c.corpus} · ${s.device.toUpperCase()} · ${calTxt}`;
+  $('foot-model').textContent = c.model;
+  $('foot-device').textContent = s.device;
+  $('foot-cal').textContent = c.status === 'ready' ? `${c.m} + ${c.n_dev} docs · ${c.corpus}` : c.status;
+  $('bench-hint').textContent = `family: ${c.detectors.join(', ')} × budgets ${c.budgets.join('/')}`
+    + (c.binoculars ? ' · contrasting-model detector on' : '')
+    + (c.fastdetect ? ' · Fast-DetectGPT curvature on' : '');
+  if(c.resolution) renderCounts(c.resolution);
+  STATE.model = c.model;
+  STATE.binoculars = c.binoculars;
+  STATE.fast = !!c.fastdetect;
+  renderModelChips(c);
+  updateModelHints(c);
+}
+let statusPollTimer = null;
+function pollStatus(){
+  fetch('/api/status').then(r=>r.json()).then(s=>{
+    const c = s.calibration;
+    lockWhileCalibrating(c.status);
+    if(c.status === 'ready'){
+      applyStatus(s);
+      setProgress(100, c.detail || 'Calibration ready.');
+      if(statusPollTimer){ clearInterval(statusPollTimer); statusPollTimer = null; }
+      setTimeout(()=>{ progress.hidden = true; }, 2500);
+      return;
+    }
+    setProgress(c.status === 'downloading' ? 20 : (c.status === 'scoring' ? 45 : 10),
+                `Calibration: ${c.detail || c.status}…`, c.status === 'error');
+  }).catch(()=>{});
+}
+fetch('/api/status').then(r=>r.json()).then(s=>{
+  const c = s.calibration;
+  applyStatus(s);
+  lockWhileCalibrating(c.status);
+  if(c.status === 'ready') return;
+  setProgress(10, `Calibration: ${c.detail || c.status}…`);
+  statusPollTimer = setInterval(pollStatus, 5000);
+}).catch(()=>{});
+
+/* ── model chips ── */
+function renderModelChips(c){
+  const grid = $('model-chips');
+  grid.innerHTML = (c.models || []).map(m=>{
+    const ready = c.models_ready && c.models_ready[m];
+    const selected = m === c.model;
+    return `<button class="chip${selected ? ' selected' : ''}" data-value="${m}">${MODEL_LABELS[m] || m}${ready ? ' · cached' : ''}</button>`;
+  }).join('');
+  grid.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(STATE.running || benchRunning) return;
+      const model = chip.dataset.value;
+      grid.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
+      chip.classList.add('selected');
+      selectModel(model, STATE.binoculars, STATE.fast);
+    });
+  });
+  const bino = document.querySelector('.chip-grid[data-group="bino"]');
+  bino.querySelectorAll('.chip').forEach(chip=>{
+    chip.classList.toggle('selected', (chip.dataset.value === '1') === !!c.binoculars);
+  });
+  const fast = document.querySelector('.chip-grid[data-group="fast"]');
+  if(fast) fast.querySelectorAll('.chip').forEach(chip=>{
+    chip.classList.toggle('selected', (chip.dataset.value === '1') === !!c.fastdetect);
+  });
+  applyConfigLock();
+}
+function updateModelHints(c){
+  $('model-hint').textContent =
+    `Frontier-model text separates better under stronger scorers or the contrasting detector. ` +
+    `A model not yet cached builds its calibration on first use (~1–4 min).`;
+  const compatible = ['gpt2', 'gpt2-large'].includes(STATE.model);
+  const fastCompatible = ['gpt2'].includes(STATE.model);
+  $('bino-hint').textContent = (STATE.model === 'gpt2-medium')
+    ? 'The contrasting detector needs observer ≠ performer; gpt2-medium is the performer, so it is unavailable for this model.'
+    : (compatible
+       ? 'Contrasts gpt2-medium (performer) against the scoring model (observer). Strongest signal for frontier-model text.'
+       : 'The contrasting detector needs observer and performer to share a vocabulary; it is only available for gpt2 and gpt2-large.')
+    + (fastCompatible ? '' : ' Fast-DetectGPT curvature likewise needs the gpt2 tokenizer; unavailable for this model.');
+}
+async function selectModel(model, bino, fast){
+  const wantBino = bino !== undefined ? bino : STATE.binoculars;
+  const wantFast = fast !== undefined ? fast : STATE.fast;
+  if(model === STATE.model && wantBino === STATE.binoculars && wantFast === STATE.fast) return;
+  if(STATE.running) return;
+  setBusy(true); setProgress(3, `Switching scoring model to ${MODEL_LABELS[model] || model}…`);
+  try{
+    const res = await fetch('/api/model', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model, binoculars: wantBino, fastdetect: wantFast }),
+    });
+    const data = await res.json();
+    if(!res.ok){ setProgress(0, (data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Switch failed.', true); setBusy(false); return; }
+    if(data.job_id === 'noop'){ finishModelSwitch(data.result); return; }
+    schedulePoll(()=>pollModel(data.job_id), 'model', 600);
+  }catch(err){
+    setProgress(0, 'Network error: is the server running?', true);
+    setBusy(false);
+  }
+}
+async function pollModel(jobId){
+  const r = await fetch(`/api/job/${jobId}`);
+  const j = await r.json();
+  pollFailures.model = 0;
+  if(j.status === 'done'){ finishModelSwitch(j.result); return false; }
+  if(j.status === 'error' || !j.status){
+    setProgress(0, `Model switch failed: ${j.error || 'job is no longer tracked (server restarted?)'}`, true);
+    setBusy(false);
+    fetch('/api/status').then(r=>r.json()).then(s=>{
+      renderModelChips(s.calibration);
+      updateModelHints(s.calibration);
+    }).catch(()=>{});
+    return false;
+  }
+  const pct = j.status === 'scoring' ? 45 : (j.status === 'loading' ? 15 : (j.status === 'downloading' ? 25 : 5));
+  setProgress(pct, `${j.detail || j.status} · ${j.elapsed || 0}s`);
+  return true;
+}
+function finishModelSwitch(res){
+  STATE.model = res.model;
+  STATE.binoculars = res.binoculars;
+  STATE.fast = !!res.fastdetect;
+  setProgress(100, `Model ready: ${res.model} · ${res.corpus} · m=${res.m} · ${res.binoculars ? 'contrasting detector on' : 'base detectors'}${res.fastdetect ? ' · Fast-DetectGPT on' : ''}`);
+  setBusy(false);
+  fetch('/api/status').then(r=>r.json()).then(s=>{
+    renderModelChips(s.calibration);
+    updateModelHints(s.calibration);
+    renderCounts(s.calibration.resolution);
+    $('bench-hint').textContent = `family: ${s.calibration.detectors.join(', ')} × budgets ${s.calibration.budgets.join('/')}`
+      + (s.calibration.binoculars ? ' · contrasting-model detector on' : '')
+      + (s.calibration.fastdetect ? ' · Fast-DetectGPT curvature on' : '');
+  }).catch(()=>{});
+  setTimeout(()=>{ progress.hidden = true; }, 4000);
+}
+
+/* ── resolution hint + counts table ── */
+function resolutionHint(){
+  fetch('/api/status').then(r=>r.json()).then(s=>{
+    const c = s.calibration;
+    const a = STATE.alpha;
+    const nA = c.n_actions, w = 1/nA;
+    const mReqA = Math.ceil(1/(a*w)) - 1;
+    const mReqB = Math.ceil(1/a) - 1;
+    $('resolution-hint').textContent =
+      `Calibration m=${c.m}. Construction A rejection resolvable at α=${a} for m ≥ ${mReqA} (${c.m >= mReqA ? 'yes' : 'no'}) · B for m ≥ ${mReqB} (${c.m >= mReqB ? 'yes' : 'no'}).`;
+  }).catch(()=>{});
+}
+function renderCounts(res){
+  $('counts-head').textContent = `A · ${res.n_actions} equal allocations`;
+  $('counts-body').innerHTML = res.rows.map(row=>{
+    return `<tr>
+      <td><b>${row.alpha}</b></td>
+      <td>m ≥ <b>${row.a_m_req.toLocaleString()}</b> ${row.a_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
+      <td>m ≥ <b>${row.b_m_req.toLocaleString()}</b> ${row.b_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
+    </tr>`;
+  }).join('');
+  $('counts-note').textContent =
+    `Current configuration: ${res.n_actions} equal allocations for A (w = 1/${res.n_actions}), one path rank for B, m = ${res.m}. ` +
+    `The proposal's prototype (3 detectors × 4 budgets = 12 allocations) gives the reference minima 1,199 at α=0.01 and 11,999 at α=0.001. ` +
+    `Counts permit rejection on the rank grid; useful power may require more data.`;
+}
+
+/* ── audit calculator ── */
+function computeAudit(){
+  const n = parseInt($('audit-n').value, 10);
+  if(!n || n < 1) { $('audit-out').textContent = 'Enter N₀ ≥ 1.'; return; }
+  const u = 1 - Math.pow(0.05, 1/n);
+  const ok = n >= 2995;
+  $('audit-out').innerHTML =
+    `U<sub>0.95</sub> = ${u.toFixed(4)}${ok ? ' · <span class="ok">meets the &lt; 0.001 target</span>' : ' · <span class="no">below the 2,995 requirement</span>'}`;
+}
+$('audit-go').addEventListener('click', computeAudit);
+$('audit-n').addEventListener('keydown', e=>{ if(e.key === 'Enter') computeAudit(); });
+
+/* ── FAQ accordion ── */
+document.querySelectorAll('.faq-q').forEach(q=>{
+  q.addEventListener('click', ()=>{
+    q.parentElement.classList.toggle('open');
+  });
+});
+
+/* ── word count ── */
+const input = $('text-input');
+input.addEventListener('input', ()=>{
+  const w = input.value.trim().split(/\s+/).filter(Boolean).length;
+  $('word-count').textContent = `${w} word${w===1?'':'s'}`;
+});
+
+/* ── α chips ── */
+document.querySelectorAll('.chip-grid[data-group="alpha"]')[0]?.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  if(STATE.running || benchRunning) return;
+  document.querySelectorAll('.chip-grid[data-group="alpha"] .chip').forEach(c=>c.classList.remove('selected'));
+  chip.classList.add('selected');
+  STATE.alpha = parseFloat(chip.dataset.value);
+  resolutionHint();
+});
+
+/* ── input tabs: paste vs upload ── */
+document.querySelectorAll('.input-tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.input-tab').forEach(x=>x.classList.toggle('active', x === t));
+    const which = t.dataset.input;
+    $('input-panel-text').hidden = (which !== 'text');
+    $('input-panel-file').hidden = (which !== 'file');
+  });
+});
+
+/* ── file upload ── */
+const ALLOWED_EXT = ['.pdf', '.docx', '.txt', '.md'];
+let pendingFile = null;
+let fileJobRunning = false;
+
+function setFileError(msg){
+  $('file-progress').hidden = false;
+  $('file-fill').style.width = '0%';
+  $('file-label').textContent = msg;
+  $('file-label').classList.add('progress-error');
+}
+function clearFileError(){ $('file-label').classList.remove('progress-error'); }
+function acceptFile(file){
+  const name = file.name;
+  const ext = '.' + (name.split('.').pop() || '').toLowerCase();
+  if(!ALLOWED_EXT.includes(ext)){
+    setFileError(`Unsupported file type '${ext}'. Accepted: ${ALLOWED_EXT.join(', ')}.`);
+    return;
+  }
+  if(file.size > 20 * 1024 * 1024){ setFileError('File too large (max 20 MB).'); return; }
+  if(file.size === 0){ setFileError('File is empty.'); return; }
+  pendingFile = file;
+  const kb = file.size > 1024 * 1024 ? (file.size / (1024*1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB';
+  const chip = $('file-chip');
+  chip.textContent = '';
+  chip.append(document.createTextNode(name + ' '));
+  const sizeEl = document.createElement('b');
+  sizeEl.textContent = '· ' + kb;
+  chip.append(sizeEl);
+  $('upload-drop').hidden = true;
+  $('upload-ready').hidden = false;
+  clearFileError();
+}
+$('btn-browse').addEventListener('click', ()=>{ $('file-input').click(); });
+$('file-input').addEventListener('change', e=>{ if(e.target.files[0]) acceptFile(e.target.files[0]); });
+const dropZone = $('upload-drop');
+['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev, e=>{
+  e.preventDefault(); dropZone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev, e=>{
+  e.preventDefault(); dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) acceptFile(e.dataTransfer.files[0]); });
+$('btn-file-clear').addEventListener('click', ()=>{
+  pendingFile = null;
+  $('file-input').value = '';
+  $('upload-ready').hidden = true;
+  $('upload-drop').hidden = false;
+  $('file-progress').hidden = true;
+});
+
+async function screenFile(){
+  if(!pendingFile || fileJobRunning || STATE.running || benchRunning) return;
+  fileJobRunning = true;
+  lockConfig();
+  $('btn-screen-file').disabled = true;
+  $('btn-screen-file').textContent = 'Screening file…';
+  $('file-progress').hidden = false;
+  $('file-fill').style.width = '3%';
+  $('file-label').textContent = 'Uploading…';
+  clearFileError();
+  try{
+    const fd = new FormData();
+    fd.append('file', pendingFile);
+    fd.append('alpha', STATE.alpha);
+    const res = await fetch('/api/upload', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){
+      setFileError((data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Upload failed.');
+      fileJobRunning = false; unlockConfig();
+      $('btn-screen-file').disabled = false; $('btn-screen-file').textContent = 'Screen file';
+      return;
+    }
+    STATE.jobId = data.job_id;
+    schedulePoll(()=>pollFile(), 'file', 600);
+  }catch(err){
+    setFileError('Connection problem: check that the server is running, then try again.');
+    fileJobRunning = false; unlockConfig();
+    $('btn-screen-file').disabled = false; $('btn-screen-file').textContent = 'Screen file';
+  }
+}
+function finishFile(){
+  fileJobRunning = false; unlockConfig();
+  $('btn-screen-file').disabled = false; $('btn-screen-file').textContent = 'Screen file';
+  $('file-fill').style.width = '100%';
+  $('file-label').textContent = 'Done. Results below.';
+  pendingFile = null;
+  $('file-input').value = '';
+}
+async function pollFile(){
+  const r = await fetch(`/api/job/${STATE.jobId}`);
+  const j = await r.json();
+  pollFailures.file = 0;
+  if(j.status === 'done'){
+    render(j.result);
+    finishFile();
+    resultsSec.hidden = false;
+    setTimeout(()=>resultsSec.scrollIntoView({behavior:'smooth'}), 250);
+    return false;
+  }
+  if(j.status === 'error' || !j.status){
+    setFileError(`Screening failed: ${j.error || 'job is no longer tracked (server restarted?)'}`);
+    finishFile();
+    return false;
+  }
+  const pct = j.status === 'scoring' ? 60 : 15;
+  $('file-fill').style.width = pct + '%';
+  $('file-label').textContent = `${j.detail || j.status} · ${j.elapsed || 0}s`;
+  return true;
+}
+$('btn-screen-file').addEventListener('click', screenFile);
+
+/* ── screen ── */
+const progress = $('progress'), fill = $('progress-fill'), label = $('progress-label');
+const resultsSec = $('results');
+const STATUS_PCT = { queued:3, scoring:60, done:100 };
+
+function setProgress(pct, text, isError){
+  progress.hidden = false;
+  fill.style.width = pct + '%';
+  label.textContent = text;
+  label.classList.toggle('progress-error', !!isError);
+}
+function setBusy(b){
+  STATE.running = b;
+  $('btn-detect').disabled = b;
+  $('btn-detect-nav').disabled = b;
+  $('btn-bench').disabled = b;
+  $('btn-screen-file').disabled = b;
+  $('btn-detect').textContent = b ? 'Screening…' : 'Screen: both constructions';
+  $('btn-detect-nav').textContent = b ? 'Screening…' : 'Screen';
+  if(b) lockConfig(); else unlockConfig();
+}
+
+async function detect(){
+  const text = input.value.trim();
+  if(STATE.running || benchRunning || fileJobRunning) return;
+  if(text.split(/\s+/).length < 20){
+    setProgress(0, 'Please paste at least 20 words.', true); progress.hidden = false;
+    return;
+  }
+  setBusy(true); setProgress(3, 'Queued…');
+  try{
+    const res = await fetch('/api/detect', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, construction: 'both', alpha: STATE.alpha }),
+    });
+    const data = await res.json();
+    if(!res.ok){ setProgress(0, (data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Request failed.', true); setBusy(false); return; }
+    STATE.jobId = data.job_id;
+    schedulePoll(poll, 'screen', 600);
+  }catch(err){
+    setProgress(0, 'Network error: is the server running?', true);
+  } finally { if(!STATE.jobId) setBusy(false); }
+}
+
+let pollFailures = { screen:0, model:0, bench:0 };
+function schedulePoll(fn, key, ms){
+  Promise.resolve().then(fn).then(cont=>{
+    if(cont === false) return;               // terminal: stop polling
+    setTimeout(()=>schedulePoll(fn, key, ms), ms);
+  }).catch(err=>{
+    pollFailures[key] += 1;
+    if(pollFailures[key] <= 5){
+      setTimeout(()=>schedulePoll(fn, key, ms), 2000);
+    } else {
+      const msg = 'Connection problem: check that the server is running, then try again.';
+      if(key === 'screen'){ setProgress(0, msg, true); setBusy(false); STATE.jobId = null; }
+      if(key === 'model'){ setProgress(0, msg, true); setBusy(false); }
+      if(key === 'bench'){ benchLabel.textContent = msg; benchLabel.classList.add('progress-error'); resetBenchButton(); }
+      if(key === 'file'){ setFileError(msg); finishFile(); }
+      pollFailures[key] = 0;
+    }
+  });
+}
+async function poll(){
+  const r = await fetch(`/api/job/${STATE.jobId}`);
+  const j = await r.json();
+  pollFailures.screen = 0;
+  if(j.status === 'done'){
+    render(j.result);
+    setProgress(100, `Done in ${j.result.elapsed_seconds}s · ${j.result.m} calibration documents`);
+    setBusy(false); STATE.jobId = null;
+    resultsSec.hidden = false;
+    setTimeout(()=>resultsSec.scrollIntoView({behavior:'smooth'}), 250);
+    return false;
+  }
+  if(j.status === 'error' || !j.status){
+    setProgress(0, `Screening failed: ${j.error || 'job is no longer tracked (server restarted?)'}`, true);
+    setBusy(false); STATE.jobId = null;
+    return false;
+  }
+  const note = j.elapsed > 20 ? ' · first run loads the model, ~10s' : '';
+  setProgress(STATUS_PCT[j.status] || 5, `${j.detail || j.status} · ${j.elapsed || 0}s${note}`);
+  return true;
+}
+
+/* ── benchmark ── */
+const benchProg = $('bench-progress'), benchFill = $('bench-fill'), benchLabel = $('bench-label');
+let benchRunning = false;
+
+async function runBenchmark(){
+  if(benchRunning || STATE.running) return;
+  benchRunning = true;
+  lockConfig();
+  $('btn-bench').disabled = true;
+  $('btn-bench').textContent = 'Benchmarking…';
+  benchProg.hidden = false; benchFill.style.width = '3%';
+  benchLabel.textContent = 'Queued…';
+  try{
+    const res = await fetch('/api/benchmark', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ corpus: BENCH.corpus, n: BENCH.n }),
+    });
+    const data = await res.json();
+    if(!res.ok){ benchLabel.textContent = (data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Request failed.'; benchLabel.classList.add('progress-error'); return; }
+    schedulePoll(()=>pollBenchmark(data.job_id), 'bench', 600);
+  }catch(err){
+    benchLabel.textContent = 'Network error: is the server running?';
+    benchLabel.classList.add('progress-error');
+  } finally { if(!benchRunning){ resetBenchButton(); } }
+}
+function resetBenchButton(){
+  benchRunning = false;
+  unlockConfig();
+  $('btn-bench').disabled = false;
+  $('btn-bench').textContent = 'Run benchmark';
+}
+async function pollBenchmark(jobId){
+  const r = await fetch(`/api/job/${jobId}`);
+  const j = await r.json();
+  pollFailures.bench = 0;
+  if(j.status === 'done'){
+    renderBenchmark(j.result);
+    benchFill.style.width = '100%';
+    benchLabel.textContent = `Done in ${j.result.elapsed_seconds}s · ${j.result.n} docs per class`;
+    resetBenchButton();
+    return false;
+  }
+  if(j.status === 'error' || !j.status){
+    benchLabel.textContent = `Benchmark failed: ${j.error || 'job is no longer tracked (server restarted?)'}`;
+    benchLabel.classList.add('progress-error');
+    resetBenchButton();
+    return false;
+  }
+  const pct = j.status === 'scoring' ? 70 : (j.status === 'downloading' ? 20 : 5);
+  benchFill.style.width = pct + '%';
+  benchLabel.textContent = `${j.detail || j.status} · ${j.elapsed || 0}s`;
+  return true;
+}
+function renderBenchmark(res){
+  $('bench-table').hidden = false;
+  $('bench-body').innerHTML = res.rows.map(row=>{
+    const okHuman = Math.abs(row.human_rate - row.alpha) < 0.12;
+    const costCell = row.construction === 'B'
+      ? `<b>${row.mean_tokens_inspected}</b> (${row.mean_savings_pct}%, ${row.mean_actions} acts)`
+      : `<b>${row.mean_tokens_inspected}</b> (0%, ${row.mean_actions} acts)`;
+    const fut = (row.construction === 'B' && row.futility_human != null)
+      ? ` · futility: human ${(row.futility_human_rate*100).toFixed(0)}%, AI ${(row.futility_ai_rate*100).toFixed(0)}%`
+      : '';
+    return `<tr>
+      <td><b>${row.construction}</b></td>
+      <td><b>${row.alpha}</b></td>
+      <td><b>${(row.human_rate*100).toFixed(1)}%</b> (${row.human_alerts}/${row.n}) ${okHuman ? '' : '· target α'}</td>
+      <td><b>${(row.ai_rate*100).toFixed(1)}%</b> (${row.ai_alerts}/${row.n})</td>
+      <td>${costCell} · vs ${row.construction === 'B' ? 'full 1,024-token route' : 'full budget'}${fut}</td>
+      <td>${row.n}</td>
+    </tr>`;
+  }).join('');
+  $('bench-note').textContent = interpretBenchmark(res);
+  $('bench-note').scrollIntoView({behavior:'smooth'});
+}
+
+function closestStep(steps){
+  let best = null;
+  for(const s of steps){
+    if(typeof s.p !== 'number' || Number.isNaN(s.p)) continue;
+    if(best === null || s.p < best.p) best = s;
+  }
+  return best;
+}
+function interpretScreen(res, isA){
+  const steps = res.steps || [];
+  const total = isA ? (res.n_actions || steps.length) : (res.route_length || steps.length);
+  if(res.alert){
+    const hit = steps.find(s => s.alert);
+    if(isA && hit) return `Alert: ${hit.detector}@${hit.budget}, p ${fmt(hit.p)} vs bound ${hit.threshold.toFixed(4)}. Stopped after ${steps.length} of ${total} actions.`;
+    if(!isA && hit) return `Alert at step ${hit.t} of ${total}: p ${fmt(hit.p)} vs bound ${res.alpha.toFixed(2)}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.`;
+  }
+  const best = closestStep(steps);
+  const where = best ? `${best.detector}@${best.budget}, p ${fmt(best.p)}` : 'no scored actions';
+  const bound = isA
+    ? (best ? best.threshold.toFixed(4) : res.alpha.toFixed(2))
+    : res.alpha.toFixed(2);
+  if(isA) return `No crossing in ${steps.length} of ${total} actions. Closest: ${where} vs bound ${bound}.`;
+  const fut = res.stopped_futility ? ' Futility rule stopped the route early.' : '';
+  return `No crossing in ${steps.length} of ${total} steps. Closest: ${where} vs bound ${bound}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.${fut}`;
+}
+function alphaExceeds(n, k, alpha){
+  const exp = n * alpha;
+  const sd = Math.sqrt(Math.max(n * alpha * (1 - alpha), 1e-12));
+  return k > exp + 2 * sd;
+}
+function interpretBenchmark(res){
+  const lines = [];
+  lines.push(`Corpus: ${res.corpus} (calibration: ${res.calibration_corpus || 'unknown'}).`);
+  if(res.matched === false){
+    lines.push(`Cross-domain run: human rates estimate α + shift, not α. Rerun with matching corpora for a validity check.`);
+  }
+  lines.push(['ccnews','cnn','pubmed','binoc-all'].includes(res.corpus)
+    ? 'Binoculars corpus, falcon-7b generations.'
+    : 'Deck-recommended corpus (RAID, DetectRL-X, or RealDet).');
+  for(const row of res.rows){
+    const over = alphaExceeds(row.n, row.human_alerts, row.alpha);
+    const sep = row.ai_rate - row.human_rate;
+    const sepWord = sep >= 0.2 ? 'clear separation' : (sep >= 0.05 ? 'weak separation' : 'no separation');
+    lines.push(`${row.construction} α=${row.alpha}: humans ${row.human_alerts}/${row.n}${over ? ', above the bound' : ', inside the bound'}; AI ${row.ai_alerts}/${row.n} flagged, ${sepWord}.`);
+  }
+  if(res.paired && res.paired.length){
+    lines.push(res.paired.map(p=>{
+      const gain = (1 - p.cost_ratio_B_over_A) * 100;
+      return `α=${p.alpha}: paired power diff (A−B) ${(p.power_diff_A_minus_B*100).toFixed(1)}pts ` +
+             `(95% lower bound ${(p.power_diff_lower_95*100).toFixed(1)}pts), ` +
+             `B costs ${(p.cost_ratio_B_over_A*100).toFixed(0)}% of A (${gain.toFixed(0)}% cheaper).`;
+    }).join('  '));
+  }
+  lines.push('Study bar: ≥20% cheaper at the same α, paired power lower bound above −0.02.');
+  return lines.join(' ');
+}
+/* ── render ── */
+function fmt(x){
+  if(x === null || x === undefined || Number.isNaN(x)) return 'n/a';
+  const a = Math.abs(x);
+  if(a >= 1000) return x.toFixed(0);
+  if(a >= 100) return x.toFixed(1);
+  if(a >= 10) return x.toFixed(2);
+  return x.toFixed(3);
+}
+function renderPanel(res, isA){
+  const suf = isA ? 'A' : 'B';
+  const v = res.verdict, lv = LEVELS[v.level];
+  $(`label-${suf}`).textContent = v.label;
+  $(`dot-${suf}`).style.background = lv.color;
+  $(`note-${suf}`).textContent = v.note;
+  $(`badge-${suf}`).textContent = res.alert ? 'alert' : 'no alert';
+  $(`badge-${suf}`).className = 'badge ' + (res.alert ? 'badge-alert' : 'badge-clear');
+
+  $(`meta-${suf}`).innerHTML =
+    `<span class="meta-chip">α <b>${res.alpha}</b></span>` +
+    `<span class="meta-chip">m <b>${res.m}</b></span>` +
+    `<span class="meta-chip">m required for rejection <b>${res.m_required}</b> · ${res.resolution_ok ? 'resolvable' : 'not resolvable'}</span>` +
+    `<span class="meta-chip">tokens inspected <b>${res.tokens_inspected}</b> of ${res.tokens_full} · ${res.tokens_saved_pct}% saved</span>` +
+    `<span class="meta-chip">actions executed <b>${res.actions_executed}</b></span>` +
+    (isA ? `<span class="meta-chip">w = 1/${res.steps.length}</span>` : '') +
+    (!isA && res.stopped_futility ? `<span class="meta-chip">futility stop <b>yes</b></span>` : '');
+
+  const rows = res.steps.map(s=>{
+    let extra;
+    if(isA){
+      extra = '';
+    } else {
+      extra = `<td>${fmt(s.partial_max)}</td>`;
+    }
+    const bound = isA ? s.threshold.toFixed(4) : res.alpha.toFixed(2);
+    const badge = s.alert
+      ? '<span class="badge badge-step-alert">alert</span>'
+      : (!isA && s.t === res.steps[res.steps.length-1].t && res.stopped_futility)
+        ? '<span class="badge badge-warn">futility stop</span>'
+        : '<span class="badge badge-step-ok">ok</span>';
+    return `<tr class="${s.alert ? 'hit' : ''}">
+      <td><b>${s.t}</b></td>
+      <td>${s.detector}</td>
+      <td>${s.budget}</td>
+      <td>${fmt(s.score)}</td>
+      ${extra}
+      <td><b>${fmt(s.p)}</b><span class="cell-sub">≤ ${bound}</span></td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+  $(`body-${suf}`).innerHTML = rows;
+
+  const saved = res.tokens_saved_pct || 0;
+  const insp = res.tokens_inspected || 0;
+  const full = res.tokens_full || 1;
+  const num = $(`savings-num-${suf}`);
+  num.textContent = saved + '%';
+  num.className = 'savings-num ' + (isA ? 'off' : (saved > 0 ? 'on' : 'off'));
+  $(`savings-fill-${suf}`).style.width = Math.max(2, Math.min(100, insp / full * 100)) + '%';
+  $(`savings-sub-${suf}`).textContent = isA
+    ? `Inspected ${insp} of ${full} tokens (full-budget baseline for the savings comparison).`
+    : `Inspected ${insp} of ${full} tokens${saved > 0 ? `, ${saved}% fewer than the full route` : ''}.`;
+
+  $(`foot-${suf}`).textContent = interpretScreen(res, isA);
+}
+const MARK_COLORS = { opener:'#ff9500', filler:'#0071e3', jargon:'#af52de',
+  structure:'#ff3b30', meta:'#5856d6', passive:'#8e8e93', phrase:'#0066cc', emdash:'#d6a800' };
+const MARK_LABELS = { opener:'throat-clearing opener', filler:'filler / emphasis crutch', jargon:'business jargon',
+  structure:'formulaic structure', meta:'meta-commentary', passive:'passive construction', phrase:'AI phrasing', emdash:'em dash' };
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderMarked(res){
+  const sl = res.slop;
+  const show = res.text && sl && sl.spans && sl.spans.length > 0;
+  $('btn-marked').hidden = !show;
+  if(!show){ $('marked-card').hidden = true; return; }
+
+  // legend: categories actually present
+  const cats = [...new Set(sl.spans.map(s=>s.category))];
+  $('marked-legend').innerHTML = cats.map(c=>
+    `<span><span class="marked-dot" style="background:${MARK_COLORS[c] || '#0066cc'}"></span>${MARK_LABELS[c] || c}</span>`
+  ).join('');
+
+  // spans sorted; drop overlaps (keep first), build highlighted HTML
+  const spans = [...sl.spans].sort((a,b)=>a.start-b.start || b.end-a.end);
+  const kept = [];
+  let lastEnd = -1;
+  for(const sp of spans){
+    if(sp.start < lastEnd) continue;
+    kept.push(sp);
+    lastEnd = Math.max(lastEnd, sp.end);
+  }
+  let out = '';
+  let pos = 0;
+  for(const sp of kept){
+    out += esc(res.text.slice(pos, sp.start));
+    out += `<mark class="mark-${sp.category}" title="${esc(sp.name)} (${MARK_LABELS[sp.category] || sp.category})">` +
+           esc(res.text.slice(sp.start, sp.end)) + '</mark>';
+    pos = sp.end;
+  }
+  out += esc(res.text.slice(pos));
+  $('marked-body').innerHTML = out;
+  $('marked-card').hidden = false;
+}
+
+$('btn-marked').addEventListener('click', ()=>{ $('marked-card').hidden = false; $('marked-card').scrollIntoView({behavior:'smooth'}); });
+$('btn-marked-close').addEventListener('click', ()=>{ $('marked-card').hidden = true; });
+
+function render(res){
+  renderPanel(res.A, true);
+  renderPanel(res.B, false);
+  renderSlop(res.slop);
+  renderMarked(res);
+  const src = res.file;
+  $('result-source').hidden = !src;
+  if(src){
+    $('result-source').textContent =
+      `Source: ${src.name} · ${src.n_words} words extracted` + (src.truncated ? ' · truncated to the 2,000-word cap' : '') + ' · scored at α ' + res.alpha;
+  }
+}
+function renderSlop(sl){
+  if(!sl) return;
+  $('slop-report').hidden = false;
+  const softBits = (sl.soft_hits && sl.soft_total > 0)
+    ? Object.entries(sl.soft_hits).sort((a,b)=>b[1]-a[1]).slice(0, 3).map(([n,c])=>`${n} ×${c}`).join(', ')
+    : '';
+  const softNote = softBits
+    ? ` Weak signals present (${softBits}), common in human writing too, counted separately.`
+    : '';
+  if(sl.total > 0){
+    const hot = sl.density_per_100 >= 3;
+    $('slop-badge').textContent = `${sl.total} marker${sl.total === 1 ? '' : 's'} · ${sl.density_per_100} per 100 words`;
+    $('slop-badge').className = 'badge ' + (hot ? 'badge-alert' : 'badge-warn');
+    $('slop-line').textContent =
+      'The text carries predictable AI phrasing from the stop-slop lexicon. This is a surface signal: '
+      + (hot ? 'the density is high enough to strengthen the alert case on its own.' : 'use it alongside the conformal p-values, not alone.')
+      + softNote;
+    const top = Object.entries(sl.hits).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+    $('slop-chips').innerHTML = top.map(([rawName, count])=>{
+      const name = rawName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const exText = sl.examples[rawName];
+      const ex = exText ? ` title="${String(exText).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"` : '';
+      return `<span class="meta-chip"${ex}>${name} <b>×${count}</b></span>`;
+    }).join('');
+  } else {
+    $('slop-badge').textContent = sl.soft_total > 0 ? 'no hard markers' : 'clean';
+    $('slop-badge').className = 'badge ' + (sl.soft_total > 0 ? 'badge-warn' : 'badge-clear');
+    $('slop-line').textContent =
+      'No stop-slop style markers detected: the text avoids predictable AI phrasing, or its style falls outside the lexicon. Frontier-model prose often does; the statistical detectors carry that case.'
+      + softNote;
+    $('slop-chips').innerHTML = '';
+  }
+}
+
+/* ── benchmark chips ── */
+document.querySelectorAll('.chip-grid[data-group="bench-corpus"]')[0]?.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  if(STATE.running || benchRunning) return;
+  document.querySelectorAll('.chip-grid[data-group="bench-corpus"] .chip').forEach(c=>c.classList.remove('selected'));
+  chip.classList.add('selected'); BENCH.corpus = chip.dataset.value;
+});
+document.querySelectorAll('.chip-grid[data-group="bench-n"]')[0]?.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  if(STATE.running || benchRunning) return;
+  document.querySelectorAll('.chip-grid[data-group="bench-n"] .chip').forEach(c=>c.classList.remove('selected'));
+  chip.classList.add('selected'); BENCH.n = parseInt(chip.dataset.value, 10);
+});
+
+document.querySelector('.chip-grid[data-group="bino"]').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  if(STATE.running || benchRunning) return;
+  const want = chip.dataset.value === '1';
+  if(want === STATE.binoculars) return;
+  const compatible = ['gpt2', 'gpt2-large'].includes(STATE.model);
+  if(want && (!compatible || STATE.model === 'gpt2-medium')){
+    $('bino-hint').textContent = 'The contrasting detector is unavailable for this scoring model. Use gpt2 or gpt2-large.';
+    $('bino-hint').style.color = 'var(--red)';
+    setTimeout(()=>{ $('bino-hint').style.color = ''; updateModelHints(); }, 3500);
+    return;
+  }
+  document.querySelectorAll('.chip-grid[data-group="bino"] .chip').forEach(x=>x.classList.remove('selected'));
+  chip.classList.add('selected');
+  selectModel(STATE.model, want, STATE.fast);
+});
+document.querySelector('.chip-grid[data-group="fast"]').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  if(STATE.running || benchRunning) return;
+  const want = chip.dataset.value === '1';
+  if(want === STATE.fast) return;
+  if(want && STATE.model !== 'gpt2'){
+    $('bino-hint').textContent = 'Fast-DetectGPT curvature needs the gpt2 reference/scoring pair. Use gpt2.';
+    $('bino-hint').style.color = 'var(--red)';
+    setTimeout(()=>{ $('bino-hint').style.color = ''; updateModelHints(); }, 3500);
+    return;
+  }
+  document.querySelectorAll('.chip-grid[data-group="fast"] .chip').forEach(x=>x.classList.remove('selected'));
+  chip.classList.add('selected');
+  selectModel(STATE.model, STATE.binoculars, want);
+});
+$('btn-detect').addEventListener('click', detect);
+$('btn-detect-nav').addEventListener('click', ()=>{ showTab('screen'); setTimeout(detect, 50); });
+$('btn-bench').addEventListener('click', runBenchmark);
+
+/* ── help mode: hotspots with process + math ───────────── */
+const HELP_ITEMS = [
+  { sel:'#text-input', title:'The document input',
+    process:'Paste text or upload a file (PDF, DOCX, TXT, MD). One scoring pass reads the document in prefixes under the selected generative model.',
+    math:'S_a(X) = score over the first min(b_k, L) tokens; larger = more suspicious.' },
+  { sel:'#model-chips', title:'The scoring engine',
+    process:'Choose the generative model that produces the per-token likelihood scores. First use of a model builds its own calibration.',
+    math:'per-token LL = log P(t_i | t_<i) under the causal LM.' },
+  { sel:'.chip-grid[data-group="bino"]', title:'Detector family',
+    process:'The contrasting-model detector pairs a performer against the observer, and the Fast-DetectGPT toggle adds conditional-curvature scores. Independent toggles; each rebuilds that configuration’s calibration.',
+    math:'bino_t = log p_perf + CE(observer ‖ performer); fast_d = Σ(LL − μ_ref)/√Σσ²_ref (upstream analytic).' },
+  { sel:'.chip-grid[data-group="alpha"]', title:'False-alert budget α',
+    process:'α is the accepted risk of flagging a human-written document. Stricter α needs more calibration documents.',
+    math:'P(any alert | null) ≤ α. A splits into α·w_a per action; B uses one α on the path rank.' },
+  { sel:'#btn-detect', title:'The screen action',
+    process:'Runs both constructions on the same scoring pass: one forward pass, both decision rules.',
+    math:'One precomputed prefix score table feeds Construction A and Construction B.' },
+  { sel:'#table-A', title:'Construction A: registered family',
+    process:'Every registered action carries its own error share. Any executed action crossing its bound alerts; the union bound protects the whole family.',
+    math:'p_a = (1 + #{H_i ≥ S_a(X)}) / (m+1);  alert if p_a ≤ α·w_a.' },
+  { sel:'#table-B', title:'Construction B: complete path',
+    process:'The frozen route is calibrated on its complete maxima; deployment follows a prefix and stops at the first crossing.',
+    math:'M_π(X) = max_t g_a(S_a(X));  alert if p_t^path ≤ α;  partial max ≤ complete max.' },
+  { sel:'#savings-num-B', title:'Token savings',
+    process:'How much inspection Construction B avoided by stopping early instead of reading the full budget.',
+    math:'saved% = (1 − inspected/full) × 100.' },
+  { sel:'#slop-report', title:'Style markers',
+    process:'Predictable AI phrasing from the stop-slop lexicon. A surface signal, never proof on its own.',
+    math:'Hard patterns enter the registered family; soft signals are reported separately and never scored.' },
+  { sel:'#benchmark', title:'Benchmark',
+    process:'Aggregate alert rates over paired human/AI documents from the Binoculars or deck-recommended corpora.',
+    math:'Human rate ≈ α under the null (exchangeable docs); AI rate = empirical power.' },
+  { sel:'#counts-table', title:'Calibration counts',
+    process:'How many calibration documents a rejection requires on the rank grid. Useful power may need more.',
+    math:'A: m ≥ ⌈1/(α·w_a)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },
+  { sel:'#audit-n', title:'Independent audit',
+    process:'Fixed-sample audit of the deployment false-alert rate with zero observed errors.',
+    math:'U = 1 − γ^(1/N₀); at γ=0.05, N₀ ≥ 2,995 gives U < 0.001.' },
+];
+let helpOn = localStorage.getItem('conformal-help') === null || localStorage.getItem('conformal-help') === '1';
+const helpHots = [];
+let helpRefreshTimer = null;
+let helpTipIndex = -1;
+
+function applyHelpMode(){
+  document.querySelectorAll('.help-hot').forEach(h=>h.remove());
+  helpHots.length = 0;
+  if(!helpOn){ $('help-tip').hidden = true; return; }
+  HELP_ITEMS.forEach((item, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'help-hot';
+    el.textContent = '?';
+    el.dataset.idx = String(idx);
+    el.addEventListener('click', ev=>{ ev.stopPropagation(); showHelpTip(idx, el.getBoundingClientRect()); });
+    document.body.appendChild(el);
+    helpHots.push({el, item});
+  });
+  positionHotspots();
+  if(!helpRefreshTimer) helpRefreshTimer = setInterval(positionHotspots, 1500);
+}
+function positionHotspots(){
+  if(!helpOn) return;
+  helpHots.forEach(({el, item})=>{
+    const target = document.querySelector(item.sel);
+    if(!target || target.offsetParent === null){ el.style.display = 'none'; return; }
+    const r = target.getBoundingClientRect();
+    if(r.width === 0 || r.height === 0 ||
+       r.bottom < 0 || r.top > window.innerHeight ||
+       r.right < 0 || r.left > window.innerWidth){
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = 'flex';
+    const left = Math.max(8, Math.min(r.right - 8, window.innerWidth - 30));
+    const top = Math.max(52, r.top - 8);
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+  });
+  if(helpTipIndex >= 0){
+    const idx = helpTipIndex;
+    const hot = document.querySelector(`.help-hot[data-idx="${idx}"]`);
+    if(!hot || hot.style.display === 'none'){ closeHelpTip(); return; }
+    positionHelpTip(hot.getBoundingClientRect());
+  }
+}
+function showHelpTip(idx, rect){
+  helpTipIndex = idx;
+  const item = HELP_ITEMS[idx];
+  $('help-tip-title').textContent = item.title;
+  $('help-tip-process').textContent = item.process;
+  $('help-tip-math').textContent = item.math;
+  $('help-tip').hidden = false;
+  positionHelpTip(rect);
+}
+function positionHelpTip(hotRect){
+  const tip = $('help-tip');
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = hotRect.right + 10;
+  if(left + w > window.innerWidth - 8) left = hotRect.left - w - 10;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  let top = hotRect.top;
+  if(top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+function closeHelpTip(){ helpTipIndex = -1; $('help-tip').hidden = true; }
+$('help-tip-close').addEventListener('click', closeHelpTip);
+document.addEventListener('click', e=>{
+  if(helpTipIndex >= 0 && !e.target.closest('.help-hot') && !e.target.closest('#help-tip')){
+    closeHelpTip();
+  }
+});
+window.addEventListener('scroll', ()=>{ if(helpOn) positionHotspots(); }, {passive:true});
+window.addEventListener('resize', ()=>{ if(helpOn) positionHotspots(); });
+
+/* ── settings ── */
+$('btn-settings').addEventListener('click', ()=>{ $('settings-modal').hidden = false; });
+$('settings-close').addEventListener('click', ()=>{ $('settings-modal').hidden = true; });
+$('settings-modal').addEventListener('click', e=>{ if(e.target === $('settings-modal')) $('settings-modal').hidden = true; });
+$('help-toggle').addEventListener('change', e=>{
+  helpOn = e.target.checked;
+  if(localStorage.getItem('conformal-privacy-choice') !== 'essential'){
+    localStorage.setItem('conformal-help', helpOn ? '1' : '0');
+  }
+  applyHelpMode();
+});
+
+$('help-toggle').checked = helpOn;
+applyHelpMode();
+
+/* ── guided tour ───────────────────────────────────────── */
+const TOUR_STEPS = [
+  { tab:'screen', target:'#text-input',
+    title:'Where the document goes',
+    body:'Paste at least 20 words of plain text. One scoring pass reads prefixes of the document under the chosen model, no preparation needed.' },
+  { tab:'screen', target:'#model-chips',
+    title:'Choose the scoring engine',
+    body:'Likelihood scores come from a GPT-2-class model. Frontier-model text (Gemini, ChatGPT) separates better with a stronger model, or with the contrasting detector, next. First use of a model builds its calibration (1–4 minutes); cached models are marked.' },
+  { tab:'screen', target:'.chip-grid[data-group="bino"]',
+    title:'Choose the detector family',
+    body:'Base detectors read likelihood, rank, and log-rank. The two toggles add the contrasting model (performer vs observer) and Fast-DetectGPT curvature. Both constructions work with any enabled combination.' },
+  { tab:'screen', target:'.chip-grid[data-group="alpha"]',
+    title:'Set the false-alert budget',
+    body:'α is the risk you accept of flagging human-written text: P(any alert under the null) ≤ α. A stricter α needs more calibration documents: the note below the chips tells you whether your m is enough.' },
+  { tab:'screen', target:'#btn-detect',
+    title:'Your turn: run a screening',
+    body:'Click “Screen: both constructions”. Two verdict panels will appear below, and we will walk you through them. (Prefer to skip? Press Next.)',
+    checkpoint:'#btn-detect' },
+  { tab:'screen', target:'#results',
+    title:'Two constructions, one document',
+    body:'Left: Construction A: the registered family, every action carrying its own share of α. Right: Construction B: the route with early stopping. Look at B’s chips: tokens inspected and % saved: the cost you avoided. Below the panels, the style-marker card lists stop-slop lexicon hits (a surface signal, not proof).',
+    waitVisible:true,
+    fallbackBody:'The two verdict panels appear here after a run; if you skipped the hands-on step, press Back and click “Screen: both constructions”. Look for B’s tokens-inspected chips (the savings) and the style-marker card beneath the panels.' },
+  { tab:'screen', target:'#benchmark',
+    title:'Verify it yourself',
+    body:'The benchmark runs both constructions over paired human/AI documents: Binoculars corpora, or the deck-recommended RAID, DetectRL-X, and RealDet. Human alert rates should sit near α (control), AI rates show power, and the cost column shows B’s mean token savings against the ≥ 20% efficiency target.' },
+  { target:'.tab-bar',
+    title:'Where to go deeper',
+    body:'How it Works holds the calibration-counts table and the audit calculator. FAQ answers the practical questions, including why some AI text is not flagged. You are ready to screen.',
+    last:true },
+];
+let tourIndex = -1;
+let tourActive = false;
+const tourPop = $('tour-popup');
+
+function showTourStep(i){
+  if(i >= TOUR_STEPS.length){ endTour(); return; }
+  if(i < 0) i = 0;
+  tourIndex = i;
+  const step = TOUR_STEPS[i];
+  if(step.tab) showTab(step.tab);
+  const el = step.target ? document.querySelector(step.target) : null;
+  const visible = el && el.offsetParent !== null;
+  $('tour-title').textContent = step.title;
+  $('tour-body').textContent = (step.fallbackBody && !visible) ? step.fallbackBody : step.body;
+  $('tour-progress').textContent = `Step ${i + 1} of ${TOUR_STEPS.length}`;
+  $('tour-next').textContent = step.last ? 'Finish' : 'Next';
+  $('tour-prev').hidden = (i === 0);
+  armCheckpoint(step);
+  positionTourStep(step);
+  $('tour-next').focus();
+  if(step.waitVisible && step.target){
+    const targetEl = document.querySelector(step.target);
+    if(targetEl && targetEl.offsetParent === null){
+      let tries = 0;
+      const iv = setInterval(()=>{
+        tries += 1;
+        const e = document.querySelector(step.target);
+        if((e && e.offsetParent !== null) || tries > 60){
+          clearInterval(iv);
+          if(tourActive && tourIndex === i) positionTourStep(step);
+        }
+      }, 250);
+    }
+  }
+}
+function positionTourStep(step){
+  const el = step.target ? document.querySelector(step.target) : null;
+  const visible = el && el.offsetParent !== null;
+  if(!visible){
+    $('tour-spot').hidden = true;
+    tourPop.hidden = false;
+    const w = tourPop.offsetWidth, h = tourPop.offsetHeight;
+    tourPop.style.left = Math.max(12, (window.innerWidth - w) / 2) + 'px';
+    tourPop.style.top = Math.max(12, (window.innerHeight - h) / 2) + 'px';
+    return;
+  }
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  const r = el.getBoundingClientRect();
+  const spot = $('tour-spot');
+  spot.hidden = false;
+  spot.style.left = (r.left - 3) + 'px';
+  spot.style.top = (r.top - 3) + 'px';
+  spot.style.width = (r.width + 6) + 'px';
+  spot.style.height = (r.height + 6) + 'px';
+  tourPop.hidden = false;
+  const w = tourPop.offsetWidth, h = tourPop.offsetHeight;
+  let top;
+  if(r.bottom + h + 16 < window.innerHeight) top = r.bottom + 16;
+  else if(r.top - h - 16 > 0) top = r.top - h - 16;
+  else top = Math.max(12, (window.innerHeight - h) / 2);
+  const left = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), window.innerWidth - w - 12);
+  tourPop.style.left = left + 'px';
+  tourPop.style.top = top + 'px';
+}
+function armCheckpoint(step){
+  disarmCheckpoint();
+  if(!step.checkpoint) return;
+  const btn = document.querySelector(step.checkpoint);
+  if(!btn) return;
+  const idx = tourIndex;
+  step._cb = ()=>{ if(tourActive && tourIndex === idx) showTourStep(idx + 1); };
+  btn.addEventListener('click', step._cb);
+}
+function disarmCheckpoint(){
+  TOUR_STEPS.forEach(s=>{ if(s._cb){ const b = s.checkpoint && document.querySelector(s.checkpoint); b && b.removeEventListener('click', s._cb); delete s._cb; } });
+}
+function openTour(){
+  $('tour-consent').hidden = false;
+}
+function startTour(){
+  $('tour-consent').hidden = true;
+  tourActive = true;
+  showTab('screen');              // spotlights target the Screen tab
+  showTourStep(0);
+}
+function endTour(){
+  tourActive = false;
+  tourPop.hidden = true;
+  $('tour-spot').hidden = true;
+  disarmCheckpoint();
+}
+$('btn-tour').addEventListener('click', openTour);
+$('tour-later').addEventListener('click', ()=>{ $('tour-consent').hidden = true; });
+$('tour-start').addEventListener('click', startTour);
+$('tour-skip').addEventListener('click', endTour);
+$('tour-next').addEventListener('click', ()=>{ if(tourActive) showTourStep(tourIndex + 1); });
+$('tour-prev').addEventListener('click', ()=>{ if(tourActive) showTourStep(tourIndex - 1); });
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape'){
+    if(!$('tour-consent').hidden) $('tour-consent').hidden = true;
+    else if(tourActive) endTour();
+  }
+});
+let tourRaf = null;
+window.addEventListener('scroll', ()=>{
+  if(!tourActive) return;
+  if(tourRaf) return;
+  tourRaf = requestAnimationFrame(()=>{ tourRaf = null; if(tourActive) positionTourStep(TOUR_STEPS[tourIndex]); });
+}, {passive:true});
+window.addEventListener('resize', ()=>{
+  if(tourActive) positionTourStep(TOUR_STEPS[tourIndex]);
+});
+
+/* ── limit simulations ──────────────────────────────────── */
+const NSV = 'http://www.w3.org/2000/svg';
+function se(tag, attrs){ const el = document.createElementNS(NSV, tag); for(const k in attrs) el.setAttribute(k, attrs[k]); return el; }
+function gaussCdf(x){ const s = x < 0 ? -1 : 1; const z = Math.abs(x)/Math.SQRT2;
+  const t = 1/(1+0.3275911*z);
+  return 0.5*(1 + s*(1-((((1.061405429*t-1.453152027)*t+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-z*z))); }
+function gaussPdf(x){ return Math.exp(-x*x/2)/Math.sqrt(2*Math.PI); }
+function randn(){ let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function rankP(cal, x){ let lo=0, hi=cal.length;
+  while(lo<hi){ const mid=(lo+hi)>>1; if(cal[mid] >= x) hi=mid; else lo=mid+1; }
+  return (1 + cal.length - lo) / (cal.length + 1); }
+
+function plotFrame(id, w, h, pad, xDom, yDom){
+  const svg = document.getElementById(id);
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const sX = v => pad + (v - xDom[0]) / (xDom[1] - xDom[0]) * (w - 2*pad);
+  const sY = v => h - pad - (v - yDom[0]) / (yDom[1] - yDom[0]) * (h - 2*pad);
+  svg.append(se('line', {x1:pad, y1:h-pad, x2:w-pad, y2:h-pad, stroke:'#c7c7cc', 'stroke-width':1}));
+  svg.append(se('line', {x1:pad, y1:pad, x2:pad, y2:h-pad, stroke:'#c7c7cc', 'stroke-width':1}));
+  const ticks = (v, label, isX) => {
+    const t = se('text', {x: isX ? sX(v) : pad-6, y: isX ? h-pad+13 : sY(v)+3,
+      'font-size':9, fill:'#86868b', 'text-anchor': isX ? 'middle' : 'end'});
+    t.textContent = label; svg.append(t);
+  };
+  [xDom[0], (xDom[0]+xDom[1])/2, xDom[1]].forEach(v=>ticks(v, String(Number(v.toFixed(2))), true));
+  [yDom[0], (yDom[0]+yDom[1])/2, yDom[1]].forEach(v=>ticks(v, String(Number(v.toFixed(2))), false));
+  return {svg, sX, sY};
+}
+function drawLine(f, pts, color, width, dash){
+  const d = pts.map((p,i)=> (i?'L':'M') + f.sX(p[0]).toFixed(1) + ' ' + f.sY(p[1]).toFixed(1)).join(' ');
+  f.svg.append(se('path', {d, fill:'none', stroke:color, 'stroke-width':width||2, 'stroke-dasharray':dash||''}));
+}
+function drawHLine(f, y, color, dash){
+  f.svg.append(se('line', {x1:f.sX(0), y1:f.sY(y), x2:f.sX(1), y2:f.sY(y), stroke:color,
+    'stroke-width':1.5, 'stroke-dasharray':dash||'5 4'}));
+}
+function drawMarker(f, x, y, color){
+  f.svg.append(se('circle', {cx:f.sX(x), cy:f.sY(y), r:5, fill:color, stroke:'#fff', 'stroke-width':1.5}));
+}
+function drawBars(f, bars){
+  const bw = 46;
+  bars.forEach((b,i)=>{
+    const x = 60 + i*110;
+    const yTop = f.sY(b.value), yBase = f.sY(0);
+    f.svg.append(se('rect', {x, y:yTop, width:bw, height:Math.max(1,yBase-yTop), rx:4, fill:b.color, opacity:0.85}));
+    const t = se('text', {x:x+bw/2, y:f.sY(0)+16, 'font-size':10, fill:'#1d1d1f', 'text-anchor':'middle', 'font-weight':600});
+    t.textContent = b.label; f.svg.append(t);
+  });
+}
+
+// fixed calibration used by all simulations (m = 260, standard normal)
+const SIM_CAL = Array.from({length: 260}, () => randn()).sort((a,b)=>a-b);
+const SIM_ALPHA = 0.05;
+
+// 1 · distribution shift
+(function(){
+  const grid = Array.from({length: 41}, (_,i)=> i*0.05);
+  const tv = d => Math.min(1, 2*gaussCdf(d/2)-1);
+  const fpr = d => {
+    let hits = 0; const n = 1500;
+    for(let i=0;i<n;i++){ if(rankP(SIM_CAL, randn()+d) <= SIM_ALPHA) hits++; }
+    return hits/n;
+  };
+  const fprCurve = grid.map(d=>[d, fpr(d)]);
+  const boundCurve = grid.map(d=>[d, Math.min(1, SIM_ALPHA + tv(d))]);
+  function render(){
+    const d = parseFloat(document.getElementById('ds-delta').value);
+    const f = plotFrame('ds-plot', 420, 210, 34, [0, 2], [0, 1]);
+    drawLine(f, boundCurve, '#ff9500', 2, '5 4');
+    drawLine(f, fprCurve, '#0066cc', 2);
+    drawHLine(f, SIM_ALPHA, '#86868b');
+    const est = fprCurve[Math.round(d/0.05)][1], bnd = Math.min(1, SIM_ALPHA + tv(d));
+    drawMarker(f, d, est, '#0066cc'); drawMarker(f, d, bnd, '#ff9500');
+    document.getElementById('ds-out').textContent = `δ=${d.toFixed(2)}`;
+    document.getElementById('ds-note').textContent =
+      `Simulated FPR at shift ${d.toFixed(2)}: ${(est*100).toFixed(1)}% (blue), bound α + TV: ${(bnd*100).toFixed(1)}% (amber). At δ=0 the FPR sits at α.`;
+  }
+  document.getElementById('ds-delta').addEventListener('input', render);
+  render();
+})();
+
+// 2 · subgroups
+(function(){
+  function fprB(d){
+    let hits = 0; const n = 800;
+    for(let i=0;i<n;i++){ if(rankP(SIM_CAL, randn()+d) <= SIM_ALPHA) hits++; }
+    return hits/n;
+  }
+  function render(){
+    const d = parseFloat(document.getElementById('sg-delta').value);
+    const pi = parseFloat(document.getElementById('sg-pi').value);
+    const fb = fprB(d);
+    const pooled = pi*fb + (1-pi)*SIM_ALPHA;
+    const f = plotFrame('sg-plot', 420, 210, 34, [0, 1], [0, 1]);
+    drawHLine(f, SIM_ALPHA, '#86868b');
+    drawBars(f, [{label:'pooled', value:pooled, color:'#0066cc'}, {label:'subgroup B', value:fb, color:'#ff3b30'}]);
+    document.getElementById('sg-out').textContent = `π=${pi.toFixed(2)}`;
+    document.getElementById('sg-note').textContent =
+      `Subgroup B FPR ${(fb*100).toFixed(1)}% vs pooled ${(pooled*100).toFixed(1)}% vs α ${(SIM_ALPHA*100).toFixed(0)}% (gray line). Pooled control holds; subgroup B is unprotected.`;
+  }
+  document.getElementById('sg-delta').addEventListener('input', render);
+  document.getElementById('sg-pi').addEventListener('input', render);
+  render();
+})();
+
+// 3 · repeated deployment
+(function(){
+  function render(){
+    const k = parseInt(document.getElementById('rd-k').value, 10);
+    const a = parseFloat(document.getElementById('rd-alpha').value);
+    const curve = Array.from({length: 50}, (_,i)=> [i+1, 1-Math.pow(1-a, i+1)]);
+    const naive = Array.from({length: 50}, (_,i)=> [i+1, Math.min(1, a*(i+1))]);
+    const f = plotFrame('rd-plot', 420, 210, 34, [1, 50], [0, 1]);
+    drawLine(f, naive, '#ff9500', 2, '5 4');
+    drawLine(f, curve, '#0066cc', 2);
+    const fwer = 1-Math.pow(1-a, k);
+    drawMarker(f, k, fwer, '#0066cc');
+    document.getElementById('rd-out').textContent = `K=${k}`;
+    document.getElementById('rd-note').textContent =
+      `K=${k} independent documents at α=${a.toFixed(3)}: P(any false alert) = ${(fwer*100).toFixed(1)}% (blue). The naive α·K bound (amber) caps at 1.`;
+  }
+  document.getElementById('rd-k').addEventListener('input', render);
+  document.getElementById('rd-alpha').addEventListener('input', render);
+  render();
+})();
+
+// 4 · interpretation
+(function(){
+  const XMIN = -2.5, XMAX = 3;
+  function curves(mu, pi){
+    const xs = [], ps = [], posts = [];
+    for(let i=0;i<=60;i++){
+      const x = XMIN + (XMAX-XMIN)*i/60;
+      const p = rankP(SIM_CAL, x);
+      const f1 = gaussPdf(x-mu), f0 = gaussPdf(x);
+      const post = pi*f1 / (pi*f1 + (1-pi)*f0);
+      xs.push(x); ps.push(p); posts.push(post);
+    }
+    return {xs, ps, posts};
+  }
+  function render(){
+    const x = parseFloat(document.getElementById('ip-x').value);
+    const pi = parseFloat(document.getElementById('ip-pi').value);
+    const mu = parseFloat(document.getElementById('ip-mu').value);
+    const {xs, ps, posts} = curves(mu, pi);
+    const f = plotFrame('ip-plot', 420, 210, 34, [XMIN, XMAX], [0, 1]);
+    drawLine(f, ps.map((p,i)=>[xs[i], p]), '#0066cc', 2);
+    drawLine(f, posts.map((p,i)=>[xs[i], p]), '#ff3b30', 2);
+    drawHLine(f, SIM_ALPHA, '#86868b');
+    const p = rankP(SIM_CAL, x);
+    const f1 = gaussPdf(x-mu), f0 = gaussPdf(x);
+    const post = pi*f1 / (pi*f1 + (1-pi)*f0);
+    drawMarker(f, x, p, '#0066cc'); drawMarker(f, x, post, '#ff3b30');
+    document.getElementById('ip-out').textContent = `x=${x.toFixed(2)}`;
+    document.getElementById('ip-note').textContent =
+      `x=${x.toFixed(2)}: conformal p = ${(p*100).toFixed(1)}% (blue), posterior P(AI|x) = ${(post*100).toFixed(1)}% (red) under π=${pi.toFixed(2)}, μ=${mu.toFixed(1)}. A small p is not a posterior.`;
+  }
+  document.getElementById('ip-x').addEventListener('input', render);
+  document.getElementById('ip-pi').addEventListener('input', render);
+  document.getElementById('ip-mu').addEventListener('input', render);
+  render();
+})();
+
+/* ── How it Works entrance choreography ── */
+const motionGroups = [
+  ['#tab-how .steps > .step', [0, .08, .16]],
+  ['#tab-how .route', [0]],
+  ['#tab-how .route-step', [0, .06, .12, .18]],
+  ['#tab-how .route-arrow', [0, .06, .12]],
+  ['#tab-how .const-card', [0, .12]],
+  ['#tab-how .how-table', [0]],
+  ['#tab-how .calc-row', [0]],
+  ['#tab-how .limits', [0]],
+];
+motionGroups.forEach(([selector, delays])=>{
+  document.querySelectorAll(selector).forEach((el, index)=>{
+    el.classList.add('anim-rise');
+    el.style.animationDelay = `${delays[index % delays.length]}s`;
+  });
+});
+
+const motionItems = document.querySelectorAll('#tab-how .anim-rise');
+if('IntersectionObserver' in window){
+  const motionObserver = new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      const el = entry.target;
+      el.classList.add('visible');
+      el.addEventListener('animationend', ()=>el.classList.add('done'), {once:true});
+      motionObserver.unobserve(el);
+    });
+  }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
+  motionItems.forEach(el=>motionObserver.observe(el));
+}else{
+  motionItems.forEach(el=>el.classList.add('done'));
+}
+
+applyHash();
+resolutionHint();
+</script>
+</body>
+</html>
