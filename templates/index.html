@@ -173,7 +173,41 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .steps-table td b{color:#fff;font-weight:600}
 .cell-sub{display:block;font-size:10.5px;font-weight:400;color:var(--gray-soft);margin-top:3px;
   font-variant-numeric:tabular-nums}
-/* Construction A: 6 columns — step, detector, budget, score, p (≤ bound), status */
+/* ── verdict summary (decision aid) ────────────────────── */
+.verdict-card{background:var(--surface-tile-2);border:1px solid rgba(255,255,255,.10);border-radius:var(--r-lg);padding:26px 30px;margin-top:26px}
+.verdict-card[hidden]{display:none}
+.verdict-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.verdict-head .tagline{color:var(--on-dark)}
+.verdict-lead{margin-top:14px;font-size:17px;font-weight:600;letter-spacing:-.25px;line-height:1.45;color:#fff}
+.verdict-list{list-style:none;margin-top:16px;display:flex;flex-direction:column;gap:11px}
+.verdict-list li{display:flex;gap:11px;align-items:flex-start;font-size:14px;letter-spacing:-.224px;line-height:1.5;color:var(--body-muted)}
+.verdict-tick{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;margin-top:1px}
+.verdict-tick.ok{background:rgba(52,199,89,.18);color:#6ee7a0}
+.verdict-tick.warn{background:rgba(255,149,0,.18);color:#ffb340}
+.verdict-tick.bad{background:rgba(255,59,48,.18);color:#ff6961}
+.verdict-tick.info{background:rgba(255,255,255,.10);color:var(--gray-soft)}
+.verdict-list b{color:#fff;font-weight:600}
+.verdict-action{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08);font-size:15px;line-height:1.55;letter-spacing:-.2px;color:var(--on-dark)}
+.verdict-action .va-label{display:block;font-size:11px;font-weight:600;letter-spacing:-.08px;text-transform:uppercase;color:var(--gray-soft);margin-bottom:6px}
+.verdict-card-light{background:var(--canvas);border:1px solid var(--hairline)}
+.verdict-card-light .verdict-head .tagline{color:var(--ink)}
+.verdict-card-light .verdict-lead{color:var(--ink)}
+.verdict-card-light .verdict-list li{color:var(--ink-muted-80)}
+.verdict-card-light .verdict-list b{color:var(--ink)}
+.verdict-card-light .verdict-tick.ok{background:rgba(52,199,89,.16);color:#0a7a31}
+.verdict-card-light .verdict-tick.warn{background:rgba(255,149,0,.16);color:#b25f00}
+.verdict-card-light .verdict-tick.bad{background:rgba(255,59,48,.14);color:#d70015}
+.verdict-card-light .verdict-tick.info{background:var(--canvas-parchment);color:var(--ink-muted-48)}
+.verdict-card-light .verdict-action{border-top-color:var(--hairline);color:var(--ink)}
+.verdict-card-light .verdict-action .va-label{color:var(--ink-muted-48)}
+.verdict-badge{font-size:11px;font-weight:600;letter-spacing:-.08px;text-transform:uppercase;border-radius:var(--pill);padding:5px 13px;white-space:nowrap}
+.verdict-badge.good{background:rgba(52,199,89,.16);color:#6ee7a0}
+.verdict-badge.mixed{background:rgba(255,149,0,.16);color:#ffb340}
+.verdict-badge.bad{background:rgba(255,59,48,.18);color:#ff6961}
+.verdict-card-light .verdict-badge.good{background:rgba(52,199,89,.14);color:#0a7a31}
+.verdict-card-light .verdict-badge.mixed{background:rgba(255,149,0,.15);color:#b25f00}
+.verdict-card-light .verdict-badge.bad{background:rgba(255,59,48,.13);color:#d70015}
+/* construction A: 6 columns — step, detector, budget, score, p (≤ bound), status */
 .steps-table-a th:nth-child(1),.steps-table-a td:nth-child(1){width:38px;text-align:center}
 .steps-table-a th:nth-child(2),.steps-table-a td:nth-child(2){width:22%}
 .steps-table-a th:nth-child(3),.steps-table-a td:nth-child(3){width:15%}
@@ -478,6 +512,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   .lead{font-size:20px}
   .savings-num{font-size:34px}
   .slop-report{padding:20px}
+  .verdict-card{padding:20px}
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -632,6 +667,18 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
         <button class="btn btn-secondary" id="btn-marked" type="button" hidden>Show AI-phrasing highlights</button>
       </div>
       <p class="result-source" id="result-source" hidden></p>
+
+      <!-- decision aid: combined read of both constructions -->
+      <div class="verdict-card" id="screen-verdict" hidden>
+        <div class="verdict-head">
+          <h3 class="tagline">What this result means</h3>
+          <span class="verdict-badge" id="sv-badge">…</span>
+        </div>
+        <p class="verdict-lead" id="sv-lead"></p>
+        <ul class="verdict-list" id="sv-list"></ul>
+        <p class="verdict-action" id="sv-action"></p>
+      </div>
+
       <div class="panel-grid">
 
         <div class="panel">
@@ -763,6 +810,18 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           <tbody id="bench-body"></tbody>
         </table>
       </div>
+
+      <!-- decision aid: benchmark read -->
+      <div class="verdict-card verdict-card-light" id="bench-verdict" hidden>
+        <div class="verdict-head">
+          <h3 class="tagline">Benchmark verdict</h3>
+          <span class="verdict-badge" id="bv-badge">…</span>
+        </div>
+        <p class="verdict-lead" id="bv-lead"></p>
+        <ul class="verdict-list" id="bv-list"></ul>
+        <p class="verdict-action" id="bv-action"></p>
+      </div>
+
       <p class="bench-note caption muted-light" id="bench-note"></p>
     </div>
   </section>
@@ -1700,7 +1759,8 @@ async function pollBenchmark(jobId){
 function renderBenchmark(res){
   $('bench-table').hidden = false;
   $('bench-body').innerHTML = res.rows.map(row=>{
-    const okHuman = Math.abs(row.human_rate - row.alpha) < 0.12;
+    const flagHtml = humanRateFlags(row).map(f =>
+      `<span title="${f.title.replace(/"/g, '&quot;')}"> ${f.text}</span>`).join('');
     const costCell = row.construction === 'B'
       ? `<b>${row.mean_tokens_inspected}</b> (${row.mean_savings_pct}%, ${row.mean_actions} acts)`
       : `<b>${row.mean_tokens_inspected}</b> (0%, ${row.mean_actions} acts)`;
@@ -1710,14 +1770,16 @@ function renderBenchmark(res){
     return `<tr>
       <td><b>${row.construction}</b></td>
       <td><b>${row.alpha}</b></td>
-      <td><b>${(row.human_rate*100).toFixed(1)}%</b> (${row.human_alerts}/${row.n}) ${okHuman ? '' : '<span title="Human alert rate differs from nominal alpha by at least 12 percentage points">· far from nominal α</span>'}</td>
+      <td><b>${(row.human_rate*100).toFixed(1)}%</b> (${row.human_alerts}/${row.n})${flagHtml}</td>
       <td><b>${(row.ai_rate*100).toFixed(1)}%</b> (${row.ai_alerts}/${row.n})</td>
       <td>${costCell} · vs ${row.construction === 'B' ? 'full 1,024-token route' : 'full budget'}${fut}</td>
       <td>${row.n}</td>
     </tr>`;
   }).join('');
   $('bench-note').textContent = interpretBenchmark(res);
-  $('bench-note').scrollIntoView({behavior:'smooth'});
+  renderBenchmarkVerdict(res);
+  const v = $('bench-verdict');
+  (v.hidden ? $('bench-note') : v).scrollIntoView({behavior:'smooth'});
 }
 
 function closestStep(steps){
@@ -1775,6 +1837,225 @@ function interpretBenchmark(res){
   }
   lines.push('Study bar: ≥20% cheaper at the same α, paired power lower bound above −0.02.');
   return lines.join(' ');
+}
+/* ── verdict cards: plain-language decision aids ── */
+function vTick(kind, html){
+  const icon = kind === 'ok' ? '✓' : kind === 'warn' ? '!' : kind === 'bad' ? '×' : 'i';
+  return `<li><span class="verdict-tick ${kind}">${icon}</span><span>${html}</span></li>`;
+}
+function closestApproach(panel){
+  const steps = panel.steps || [];
+  let best = null;
+  for(const s of steps){
+    if(typeof s.p !== 'number' || Number.isNaN(s.p)) continue;
+    const thr = s.threshold || panel.alpha;
+    if(!(thr > 0)) continue;
+    const ratio = s.p / thr;
+    if(best === null || ratio < best.ratio) best = {step: s, ratio};
+  }
+  return best;
+}
+function humanRateFlags(row){
+  const flags = [];
+  const hr = row.human_rate, al = row.alpha, diff = hr - al;
+  const over = alphaExceeds(row.n, row.human_alerts, al);
+  const farAbove = Math.abs(diff) >= 0.12 || (hr >= 2 * al && diff >= 0.03);
+  const farBelow = hr < al && (Math.abs(diff) >= 0.12 || hr <= al * 0.5);
+  if(over){
+    flags.push({text: '· above bound',
+      title: 'Human alert rate exceeds the binomial bound under nominal α.'});
+  } else if(farBelow){
+    flags.push({text: '· far below nominal α',
+      title: 'Human alert rate sits far below nominal α.'});
+  } else if(farAbove){
+    flags.push({text: '· far from nominal α',
+      title: 'Human alert rate differs from nominal α substantially.'});
+  }
+  if(row.resolution_ok === false){
+    flags.push({text: `· cannot reject at this α (needs m ≥ ${row.m_required})`,
+      title: 'Calibration too small for a non-empty rejection region at this α.'});
+  }
+  return flags;
+}
+function renderScreenVerdict(res){
+  const A = res.A, B = res.B;
+  const card = $('screen-verdict');
+  if(!A || !B){ card.hidden = true; return; }
+  const aAlert = !!A.alert, bAlert = !!B.alert;
+  const aOk = !!A.resolution_ok, bOk = !!B.resolution_ok;
+  const ticks = [];
+  let badge, cls, lead, action;
+  if(aAlert && bAlert){
+    badge = 'flag for review'; cls = 'bad';
+    lead = `Both constructions alert at α = ${res.alpha}.`;
+    ticks.push(vTick('ok', '<b>A and B agree</b> — an action crossed its bound on both inspection paths.'));
+    action = 'Flag the document for human review. An alert is a statistical departure from the human reference, not proof of AI authorship.';
+  } else if(!aAlert && !bAlert){
+    if(aOk && bOk){
+      badge = 'no alert'; cls = 'good';
+      lead = `Both constructions clear at α = ${res.alpha}.`;
+      ticks.push(vTick('ok', '<b>A and B agree</b> — no action crossed its bound.'));
+      ticks.push(vTick('ok', `Both are <b>resolvable</b> at m = ${A.m} (A needs ≥ ${A.m_required}, B needs ≥ ${B.m_required}).`));
+      action = 'No flag at this α. Non-rejection does not certify human authorship — it means insufficient evidence to alert.';
+    } else {
+      if(!aOk){ badge = 'no alert (A structural)'; }
+      if(!bOk){ badge = badge || 'no alert (B structural)'; }
+      if(!aOk && !bOk) badge = 'no alert (structural)';
+      cls = 'mixed';
+      lead = `No alert on either path, but ${!aOk && !bOk ? 'neither construction' : (!aOk ? 'Construction A' : 'Construction B')} can reject at this α with m = ${A.m}.`;
+      if(!aOk) ticks.push(vTick('warn', `A needs m ≥ <b>${A.m_required}</b> at α = ${A.alpha}; clear under A is <b>structurally unresolvable</b>.`));
+      else ticks.push(vTick('ok', `A is resolvable (needs m ≥ ${A.m_required}).`));
+      if(!bOk) ticks.push(vTick('warn', `B needs m ≥ <b>${B.m_required}</b> at α = ${B.alpha}; clear under B is <b>structurally unresolvable</b>.`));
+      else ticks.push(vTick('ok', `B is resolvable (needs m ≥ ${B.m_required}).`));
+      const need = Math.max(aOk ? 0 : A.m_required, bOk ? 0 : B.m_required);
+      const who = !aOk && !bOk ? 'A and B' : (!aOk ? 'A' : 'B');
+      action = `Rebuild the calibration with m ≥ ${need} before treating a clear result under ${who} as meaningful at this α.`;
+    }
+  } else {
+    badge = 'mixed signal'; cls = 'mixed';
+    lead = aAlert ? 'Construction A alerts; Construction B does not.' : 'Construction B alerts; Construction A does not.';
+    ticks.push(vTick('warn', '<b>A and B disagree</b> — the two decision rules read the document differently.'));
+    if(!aOk) ticks.push(vTick('warn', `A cannot reject at this α (needs m ≥ ${A.m_required}, m = ${A.m}).`));
+    if(!bOk) ticks.push(vTick('warn', `B cannot reject at this α (needs m ≥ ${B.m_required}, m = ${B.m}).`));
+    action = aAlert
+      ? 'Soft signal: prefer human review over a hard call — A’s registered family can fire where the complete path does not.'
+      : 'Soft signal: prefer human review over a hard call — B’s path rank alerted where A’s per-action bounds did not.';
+  }
+  for(const [name, panel, alert] of [['A', A, aAlert], ['B', B, bAlert]]){
+    if(alert) continue;
+    const best = closestApproach(panel);
+    if(!best) continue;
+    const near = best.ratio <= 3;
+    const where = `${best.step.detector}@${best.step.budget}, p ${fmt(best.step.p)} / bound ${(+best.step.threshold).toFixed(4)}`;
+    ticks.push(near
+      ? vTick('warn', `Closest on <b>${name}</b>: ${where} — ratio ${best.ratio.toFixed(1)}× (≤3×, a near miss).`)
+      : vTick('info', `Closest on <b>${name}</b>: ${where} — ratio ${best.ratio.toFixed(1)}×.`));
+  }
+  if(B.stopped_futility && !B.alert){
+    ticks.push(vTick('info', 'B stopped early on the <b>futility rule</b> — route halted before full length, no crossing.'));
+  }
+  const sl = res.slop;
+  if(sl && sl.total > 0 && sl.density_per_100 >= 3){
+    ticks.push(vTick('warn', `Style markers: ${sl.total} hit(s), <b>${sl.density_per_100} per 100 words</b> — surface signal that strengthens a review case.`));
+  } else if(sl && sl.total > 0){
+    ticks.push(vTick('info', `Style markers: ${sl.total} hit(s), ${sl.density_per_100} per 100 words — use alongside the p-values, not alone.`));
+  }
+  if(res.sampling && res.sampling.mode === 'random_window'){
+    ticks.push(vTick('warn', '<b>Random-window view</b> is exploratory: calibration is prefix-based, so nominal α does not apply to this window.'));
+  }
+  if(res.file && res.file.truncated){
+    ticks.push(vTick('info', `Document truncated to the 2,000-word cap (${res.file.n_words} of ${res.file.original_words} words scored).`));
+  }
+  $('sv-badge').textContent = badge;
+  $('sv-badge').className = 'verdict-badge ' + cls;
+  $('sv-lead').textContent = lead;
+  $('sv-list').innerHTML = ticks.join('');
+  $('sv-action').innerHTML = '<span class="va-label">What to do</span>' + action;
+  card.hidden = false;
+}
+function renderBenchmarkVerdict(res){
+  const ticks = [];
+  let worst = 0;
+  const push = (kind, html) => {
+    ticks.push(vTick(kind, html));
+    if(kind === 'bad') worst = 2;
+    else if(kind === 'warn' && worst < 1) worst = 1;
+  };
+  if(res.matched === false){
+    push('warn', `<b>Cross-domain run</b>: calibration on ${esc(String(res.calibration_corpus || 'unknown'))}, eval on ${esc(String(res.corpus))}. Human rates estimate α + distribution shift, not α — not a validity check.`);
+  } else {
+    push('ok', `Matched corpora (calibration and eval both ${esc(String(res.corpus))}): human rates check validity against nominal α.`);
+  }
+  const rows = res.rows || [];
+  const unres = rows.filter(r => r.resolution_ok === false);
+  if(unres.length){
+    const byC = {};
+    for(const r of rows){
+      const s = byC[r.construction] || (byC[r.construction] = {ok: 0, bad: 0, alphas: [], mreq: null});
+      if(r.resolution_ok) s.ok++;
+      else { s.bad++; s.alphas.push(r.alpha); if(s.mreq == null || r.m_required > s.mreq) s.mreq = r.m_required; }
+    }
+    for(const c of Object.keys(byC).sort()){
+      const s = byC[c];
+      if(!s.bad) continue;
+      if(s.ok === 0){
+        push('bad', `<b>Construction ${c}</b> is structurally unresolvable at every α on this run (m = ${res.m}, needs m ≥ ${s.mreq} at the loosest of α = ${s.alphas.join(', ')}). Raise calibration size to read ${c} power.`);
+      } else {
+        push('warn', `Construction ${c} cannot reject at α = ${s.alphas.join(', ')} with m = ${res.m} (needs m ≥ ${s.mreq} there).`);
+      }
+    }
+  } else {
+    push('ok', `All rows resolvable: m = ${res.m} ≥ required for every construction × α on this run.`);
+  }
+  for(const row of rows){
+    const hr = row.human_rate, al = row.alpha, diff = hr - al;
+    const over = alphaExceeds(row.n, row.human_alerts, al);
+    const far = Math.abs(diff) >= 0.12 || (hr >= 2 * al && diff >= 0.03);
+    const label = `${row.construction} α=${al}`;
+    if(over){
+      push('bad', `<b>${label}</b>: human alert rate ${(hr * 100).toFixed(1)}% (${row.human_alerts}/${row.n}) is <b>above the bound</b> — control violated beyond sampling noise.`);
+    } else if(far){
+      push('warn', `<b>${label}</b>: human alert rate ${(hr * 100).toFixed(1)}% is <b>far from nominal α=${al}</b>.`);
+    } else if(al > 0 && hr <= al * 0.5){
+      push('info', `<b>${label}</b>: human alert rate ${(hr * 100).toFixed(1)}% sits well below α=${al} (conservative, not a violation).`);
+    }
+  }
+  const resolvable = rows.filter(r => r.resolution_ok !== false);
+  if(resolvable.length){
+    let tight = null;
+    for(const r of resolvable){
+      const sep = r.ai_rate - r.human_rate;
+      if(tight === null || sep < tight.sep) tight = {row: r, sep};
+    }
+    const where = `${tight.row.construction} α=${tight.row.alpha} → ${(tight.sep * 100).toFixed(1)}pts AI−human`;
+    if(tight.sep >= 0.2) push('ok', `Separation holds on every resolvable row (tightest: ${where}).`);
+    else if(tight.sep >= 0.05) push('warn', `Weak separation on the tightest resolvable row (${where}).`);
+    else push('bad', `No usable separation on the tightest resolvable row (${where}).`);
+  }
+  if(res.n){
+    push('info', `n = ${res.n} docs per class → rates move in ${(100 / res.n).toFixed(1)}-point steps; small n makes α proximity coarse.`);
+  }
+  const aByAlpha = new Map(rows.filter(r => r.construction === 'A').map(r => [r.alpha, r]));
+  let pairedChecked = 0;
+  for(const p of (res.paired || [])){
+    const aRow = aByAlpha.get(p.alpha);
+    if(!aRow || aRow.resolution_ok === false) continue;
+    if(p.cost_ratio_B_over_A == null) continue;
+    pairedChecked++;
+    const costOk = p.cost_ratio_B_over_A <= 0.8;
+    const se = (p.power_diff_A_minus_B - p.power_diff_lower_95) / 1.644854;
+    const lowerBminusA = -(p.power_diff_A_minus_B + 1.644854 * se);
+    const powOk = lowerBminusA > -0.02;
+    if(costOk && powOk){
+      push('ok', `B-vs-A efficiency at α=${p.alpha}: B costs ${(p.cost_ratio_B_over_A * 100).toFixed(0)}% of A (≤80%) and the B−A power lower bound is ${(lowerBminusA * 100).toFixed(1)}pts (> −2pts).`);
+    } else {
+      const bits = [];
+      if(!costOk) bits.push(`B costs ${(p.cost_ratio_B_over_A * 100).toFixed(0)}% of A (need ≤80%)`);
+      if(!powOk) bits.push(`B−A power lower bound is ${(lowerBminusA * 100).toFixed(1)}pts (need > −2pts)`);
+      push('warn', `B-vs-A efficiency at α=${p.alpha}: ${bits.join('; ')}.`);
+    }
+  }
+  if(!pairedChecked){
+    push('info', 'B-vs-A efficiency check skipped: no paired α with a resolvable A at this configuration.');
+  }
+  const badge = worst === 2 ? 'issues found' : worst === 1 ? 'mixed' : 'checks pass';
+  const cls = worst === 2 ? 'bad' : worst === 1 ? 'mixed' : 'good';
+  const lead = worst === 2
+    ? 'Validity or structure failed — fix the items below before reading power numbers.'
+    : worst === 1
+      ? 'Some checks need attention — read the items below with the table.'
+      : 'Checks pass: human rates near α, separation holds, and the B-vs-A efficiency check clears where resolvable.';
+  const action = worst === 2
+    ? 'Rerun with matching calibration/eval corpora and/or a larger m before treating AI rates as power at this configuration.'
+    : worst === 1
+      ? 'Treat aggregate rates as directional only: note which checks are flagged before drawing conclusions about detection quality.'
+      : 'Safe to read AI alert rates as empirical power for this corpus, and B’s cost vs A as a matched-error comparison.';
+  $('bv-badge').textContent = badge;
+  $('bv-badge').className = 'verdict-badge ' + cls;
+  $('bv-lead').textContent = lead;
+  $('bv-list').innerHTML = ticks.join('');
+  $('bv-action').innerHTML = '<span class="va-label">What to do</span>' + action;
+  $('bench-verdict').hidden = false;
 }
 /* ── render ── */
 function fmt(x){
@@ -1890,6 +2171,7 @@ function render(res){
   renderPanel(res.B, false);
   renderSlop(res.slop);
   renderMarked(res);
+  renderScreenVerdict(res);
   const src = res.file;
   $('result-source').hidden = !src;
   if(src){
@@ -2014,9 +2296,15 @@ const HELP_ITEMS = [
   { sel:'#slop-report', title:'Style markers',
     process:'Predictable AI phrasing from the stop-slop lexicon. A surface signal, never proof on its own.',
     math:'Hard patterns enter the registered family; soft signals are reported separately and never scored.' },
+  { sel:'#screen-verdict', title:'Result verdict',
+    process:'Plain-language read of both constructions: agreement, whether each can reject at this m, futility stops, and how close the run came to its bounds.',
+    math:'Resolvable iff m ≥ ⌈1/(α·w)⌉−1 (A) or m ≥ ⌈1/α⌉−1 (B); closest approach = min p/threshold (warn if ≤3×).' },
   { sel:'#benchmark', title:'Benchmark',
     process:'Aggregate alert rates over paired human/AI documents from the Binoculars or deck-recommended corpora.',
     math:'Human rate ≈ α under the null (exchangeable docs); AI rate = empirical power.' },
+  { sel:'#bench-verdict', title:'Benchmark verdict',
+    process:'Aggregate checks: corpus match, structural resolution, human rates vs α, AI−human separation, and the B-vs-A efficiency comparison on resolvable rows.',
+    math:'Matched human rate ≈ α; separation = AI − human; B cheaper if cost_B/cost_A ≤ 0.8 with paired B−A power lower bound > −0.02.' },
   { sel:'#counts-table', title:'Calibration counts',
     process:'How many calibration documents a rejection requires on the rank grid. Useful power may need more.',
     math:'A: m ≥ ⌈1/(α·w_a)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },

@@ -798,10 +798,19 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
             detail_out.append(rec)
         if progress:
             progress(i + 1, n)
+    w_a = 1.0 / bundle.n_actions
+
+    def _m_required(c, a):
+        if c == "B":
+            return resolution_b(bundle.m, a)
+        return resolution_a(bundle.m, a, 1.0 if c == "fixed" else w_a)
+
     rows = [{
         "construction": c,
         "alpha": a,
         "n": n,
+        "m_required": _m_required(c, a),
+        "resolution_ok": bundle.m >= _m_required(c, a),
         "human_alerts": counts[c][a][0],
         "ai_alerts": counts[c][a][1],
         "human_rate": round(counts[c][a][0] / n, 4),
@@ -859,7 +868,8 @@ def benchmark(bundle, n, corpus, alphas=(0.01, 0.05, 0.1),
                                   progress=progress)
     return {"corpus": corpus, "n": n, "rows": rows, "paired": paired,
             "matched": corpus == bundle.corpus,
-            "calibration_corpus": bundle.corpus}
+            "calibration_corpus": bundle.corpus,
+            "m": bundle.m, "n_actions": bundle.n_actions}
 
 
 # ---------------------------------------------------------------------------

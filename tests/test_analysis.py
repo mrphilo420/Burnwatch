@@ -164,6 +164,37 @@ class EvaluateCellsTests(unittest.TestCase):
         # B: LOW futility-stops at step 1, HIGH alerts at step 1
         self.assertAlmostEqual(by_key[("B", 0.5)]["mean_actions"], 1.0)
 
+    def test_rows_expose_resolution_fields(self):
+        bundle = _synthetic_bundle(m=99)
+        bundle.corpus = "test-corpus"
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _detail = conformal.evaluate_cells(
+            bundle, humans, ais, ("A", "B"), (0.5,), score_fn=_stub_actions)
+        by_key = {(r["construction"], r["alpha"]): r for r in rows}
+        a = by_key[("A", 0.5)]
+        b = by_key[("B", 0.5)]
+        self.assertEqual(a["m_required"], 31)
+        self.assertTrue(a["resolution_ok"])
+        self.assertEqual(b["m_required"], 1)
+        self.assertTrue(b["resolution_ok"])
+        for r in rows:
+            self.assertEqual(r["resolution_ok"], bundle.m >= r["m_required"])
+
+    def test_rows_flag_unresolvable_when_m_too_small(self):
+        bundle = _synthetic_bundle(m=9)
+        bundle.corpus = "test-corpus"
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _detail = conformal.evaluate_cells(
+            bundle, humans, ais, ("A", "B"), (0.5,), score_fn=_stub_actions)
+        by_key = {(r["construction"], r["alpha"]): r for r in rows}
+        a = by_key[("A", 0.5)]
+        b = by_key[("B", 0.5)]
+        self.assertEqual(a["m_required"], 31)
+        self.assertFalse(a["resolution_ok"])
+        self.assertTrue(b["resolution_ok"])
+
 
 class BenchmarkMeansTests(unittest.TestCase):
     def test_means_are_per_document_not_per_pair(self):
