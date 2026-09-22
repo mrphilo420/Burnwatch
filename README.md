@@ -4,7 +4,13 @@ Project Burnwatch is a Flask web platform for adaptive, conformal screening of
 AI-generated text. It implements:
 
 - Construction A: a registered detector/action family with a union-bound error budget.
-- Construction B: a development-fixed route whose complete-path maximum is calibrated and may stop early.
+  Default allocations are resolution-aware: the error budget is concentrated on
+  the largest equal-weight active subset that can reject at the current
+  calibration size m and level α (route actions first), so Construction A
+  fulfills its rejection requirement instead of splitting α into unreachable
+  equal shares.
+- Construction B: a development-fixed route whose complete-path maximum is
+  calibrated and may stop early.
 - Fixed comparison: `ll@1024` for preregistered cost and power studies.
 - Human calibration from IMDB, Binoculars, RAID, DetectRL-X, and RealDet caches.
 - Structured benchmark reports for alert rates, power, cost, early decisions, futility, and subgroup conditions.

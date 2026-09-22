@@ -503,6 +503,66 @@ def resolution_b(m, alpha):
     return math.ceil(1.0 / alpha) - 1
 
 
+def max_equal_actions(m, alpha, n_actions):
+    """Largest k <= n_actions such that equal weights 1/k over k actions are
+    resolvable at (m, alpha): need m >= ceil(k/alpha) - 1, i.e. k <= alpha*(m+1)."""
+    if alpha <= 0 or n_actions <= 0:
+        return 0
+    return max(0, min(n_actions, int(math.floor(alpha * (m + 1)))))
+
+
+def default_a_weights(m, alpha, actions=None):
+    """Resolution-aware default error allocations for Construction A.
+
+    Equal weights over the full registered family are often infeasible: with
+    n=16 and m=260, alpha=0.05 needs m>=319. Concentrate the budget on the
+    largest equal-weight active subset that the rank grid can actually reject
+    (k = floor(alpha*(m+1))), so A fulfills Corollary A at the current m.
+    Remaining registered actions keep w=0 and can never alert.
+
+    Priority is development-fixed (not test-document dependent): route actions
+    first (same order as Construction B's route), then remaining actions in
+    registered order. Explicit ``weights`` bypasses this planner.
+    """
+    if actions is None:
+        actions = _all_actions()
+    actions = list(actions)
+    n = len(actions)
+    if n == 0:
+        return {}
+    k = max_equal_actions(m, alpha, n)
+    if k <= 0:
+        # Even a single full-weight action cannot reject (need m >= ceil(1/a)-1).
+        # Still return a valid sub-probability so execution reports thresholds.
+        return {a: 0.0 for a in actions}
+    if k >= n:
+        w = 1.0 / n
+        return {a: w for a in actions}
+    route = [a for a in DEFAULT_ROUTE if a in actions]
+    rest = [a for a in actions if a not in route]
+    active = (route + rest)[:k]
+    w = 1.0 / k
+    return {a: (w if a in active else 0.0) for a in actions}
+
+
+def a_weight_plan(m, alpha, n_actions=None):
+    """Describe Construction A's default allocation for UI/counts/report."""
+    if n_actions is None:
+        n_actions = len(active_detectors()) * len(BUDGETS)
+    k = max_equal_actions(m, alpha, n_actions)
+    if k <= 0:
+        # No positive equal weight is feasible (need m >= ceil(1/alpha)-1 for
+        # even a single full-weight action). Report B's floor as the target.
+        return {"n_registered": n_actions, "n_active": 0, "w": 0.0,
+                "m_required": resolution_b(m, alpha), "resolution_ok": False,
+                "feasible": False}
+    w = 1.0 / k
+    m_req = resolution_a(m, alpha, w)
+    return {"n_registered": n_actions, "n_active": k, "w": w,
+            "m_required": m_req, "resolution_ok": m >= m_req,
+            "feasible": True}
+
+
 def paired_difference_ci(a_alerts, b_alerts):
     """Matched-document paired power/FPR difference (A minus B) with a
     one-sided 95% lower bound from the paired Wald interval: each document
@@ -525,41 +585,68 @@ def paired_difference_ci(a_alerts, b_alerts):
 
 
 def resolution_table(m):
-    """Deck slide 'Calibration counts': A (equal allocations) vs B at
-    nominal alpha levels, given current m."""
+    """Deck slide 'Calibration counts': A (resolution-aware active subset)
+    vs B at nominal alpha levels, given current m."""
     nA = len(active_detectors()) * len(BUDGETS)
-    w = 1.0 / nA
     rows = []
     for alpha in (0.05, 0.01, 0.001):
-        ra = resolution_a(m, alpha, w)
+        plan = a_weight_plan(m, alpha, nA)
         rb = resolution_b(m, alpha)
         rows.append({
             "alpha": alpha,
-            "a_m_req": ra,
-            "a_ok": m >= ra,
+            "a_m_req": plan["m_required"],
+            "a_ok": plan["resolution_ok"],
+            "a_n_active": plan["n_active"],
+            "a_w": plan["w"],
+            "a_n_registered": nA,
             "b_m_req": rb,
             "b_ok": m >= rb,
         })
-    return {"m": m, "n_actions": nA, "w": w, "rows": rows}
+    return {"m": m, "n_actions": nA, "rows": rows}
 
 
 def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
     """Construction A: registered family, union bound.
 
-    Equal weights by default; an explicit ``weights`` map concentrates the
-    error budget on chosen actions (must sum to <= 1). Execution stops at
-    the first crossing — the union bound covers whichever prefix ran, so
-    power beyond the first alert costs nothing extra.
+    Default allocations are resolution-aware (``default_a_weights``): the
+    error budget is concentrated on the largest equal-weight active subset
+    that can reject at the current (m, alpha), so Corollary A holds on the
+    rank grid. An explicit ``weights`` map bypasses the planner (must sum
+    to <= 1). Execution stops at the first crossing — the union bound covers
+    whichever prefix ran, so power beyond the first alert costs nothing extra.
+    Zero-weight registered actions are not executed (threshold 0 is
+    unreachable; running them would only inflate cost metrics).
     """
-    nA = bundle.n_actions
     if actions is None:
         actions = _all_actions()
     if weights is None:
-        eff_w = {a: 1.0 / nA for a in actions}
+        eff_w = default_a_weights(bundle.m, alpha, actions)
     else:
         if sum(weights.values()) > 1.0 + 1e-9:
             raise ValueError("action weights must sum to <= 1")
         eff_w = {a: weights.get(a, 0.0) for a in actions}
+    # Development-fixed active set: positive weight only (route-first when
+    # planning defaults). Explicit maps may activate any subset.
+    active_actions = [a for a in actions if eff_w.get(a, 0.0) > 0]
+    if not active_actions:
+        positive = []
+        m_req = resolution_b(bundle.m, alpha)
+        return {
+            "construction": "A",
+            "alpha": alpha,
+            "m": bundle.m,
+            "m_required": m_req,
+            "resolution_ok": False,
+            "alert": False,
+            "steps": [],
+            "tokens_inspected": 0,
+            "tokens_full": min(max(BUDGETS), len(text.split())),
+            "tokens_saved_pct": 100,
+            "actions_executed": 0,
+            "n_actions": bundle.n_actions,
+            "n_active": 0,
+            "w": 0.0,
+        }
     n_tok = len(text.split())
     if pre is None:
         pre = action_scores_for(text)
@@ -567,7 +654,7 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
 
     steps = []
     alert = False
-    for det, b in actions:
+    for det, b in active_actions:
         alpha_a = alpha * eff_w[(det, b)]
         col = bundle.action_index[(det, b)]
         s = pre[(det, b)]
@@ -587,11 +674,14 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
             break
     positive = [w for w in eff_w.values() if w > 0]
     m_req = min([resolution_a(bundle.m, alpha, w) for w in positive]) if positive else math.inf
+    if not math.isfinite(m_req):
+        m_req = resolution_b(bundle.m, alpha)
+    active_w = min(positive) if positive else 0.0
     return {
         "construction": "A",
         "alpha": alpha,
         "m": bundle.m,
-        "m_required": m_req,
+        "m_required": int(m_req) if math.isfinite(m_req) else m_req,
         "resolution_ok": bundle.m >= m_req,
         "alert": alert,
         "steps": steps,
@@ -600,6 +690,8 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
         "tokens_saved_pct": 0,
         "actions_executed": len(steps),
         "n_actions": bundle.n_actions,
+        "n_active": len(positive),
+        "w": active_w,
     }
 
 
@@ -798,12 +890,17 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
             detail_out.append(rec)
         if progress:
             progress(i + 1, n)
-    w_a = 1.0 / bundle.n_actions
+    plans = {a: a_weight_plan(bundle.m, a, bundle.n_actions) for a in alphas}
 
     def _m_required(c, a):
         if c == "B":
             return resolution_b(bundle.m, a)
-        return resolution_a(bundle.m, a, 1.0 if c == "fixed" else w_a)
+        if c == "fixed":
+            return resolution_a(bundle.m, a, 1.0)
+        plan = plans[a]
+        if plan["n_active"] <= 0:
+            return plan["m_required"]
+        return resolution_a(bundle.m, a, plan["w"])
 
     rows = [{
         "construction": c,
@@ -811,6 +908,8 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
         "n": n,
         "m_required": _m_required(c, a),
         "resolution_ok": bundle.m >= _m_required(c, a),
+        "a_n_active": plans[a]["n_active"] if c == "A" else None,
+        "a_w": plans[a]["w"] if c == "A" else None,
         "human_alerts": counts[c][a][0],
         "ai_alerts": counts[c][a][1],
         "human_rate": round(counts[c][a][0] / n, 4),

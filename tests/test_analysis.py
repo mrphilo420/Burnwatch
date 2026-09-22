@@ -47,7 +47,7 @@ class ScreenAEarlyExitTests(unittest.TestCase):
 
 
 class ScreenAWeightTests(unittest.TestCase):
-    def test_concentrated_weight_alerts_where_equal_weights_cannot(self):
+    def test_concentrated_weight_alerts_where_full_family_equal_cannot(self):
         bundle = _synthetic_bundle(m=99)
         text = " ".join(["word"] * 200)
         pre = _all_above_pre()
@@ -55,8 +55,36 @@ class ScreenAWeightTests(unittest.TestCase):
         concentrated = conformal.screen_a(
             text, bundle, 0.02, pre=pre, weights={first: 1.0})
         self.assertTrue(concentrated["alert"])
-        equal = conformal.screen_a(text, bundle, 0.02, pre=pre)
-        self.assertFalse(equal["alert"])
+        # full-family equal 1/16 is infeasible at m=99, alpha=0.02 (needs 799)
+        nA = bundle.n_actions
+        equal_full = conformal.screen_a(
+            text, bundle, 0.02, pre=pre, weights={a: 1.0 / nA for a in conformal._all_actions()})
+        self.assertFalse(equal_full["alert"])
+
+    def test_default_weights_fulfill_resolution_requirements(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        pre = _all_above_pre()
+        # resolution-aware default concentrates on k=floor(alpha*(m+1)) actions
+        res = conformal.screen_a(text, bundle, 0.02, pre=pre)
+        self.assertTrue(res["resolution_ok"])
+        self.assertLessEqual(res["m_required"], bundle.m)
+        self.assertGreater(res["n_active"], 0)
+        self.assertTrue(res["alert"])
+        # active subset is a proper concentration when full family is infeasible
+        nA = bundle.n_actions
+        if res["n_active"] < nA:
+            self.assertAlmostEqual(res["w"], 1.0 / res["n_active"])
+            self.assertGreater(res["w"], 1.0 / nA)
+
+    def test_default_alpha_005_is_resolvable_at_m_260(self):
+        # production default: m=260, alpha=0.05 — full equal needs 319
+        plan = conformal.a_weight_plan(260, 0.05, 16)
+        self.assertTrue(plan["feasible"])
+        self.assertTrue(plan["resolution_ok"])
+        self.assertEqual(plan["n_active"], 13)
+        self.assertAlmostEqual(plan["w"], 1.0 / 13)
+        self.assertEqual(plan["m_required"], 259)
 
     def test_weights_summing_above_one_are_rejected(self):
         bundle = _synthetic_bundle(m=99)
@@ -174,6 +202,8 @@ class EvaluateCellsTests(unittest.TestCase):
         by_key = {(r["construction"], r["alpha"]): r for r in rows}
         a = by_key[("A", 0.5)]
         b = by_key[("B", 0.5)]
+        # alpha=0.5, m=99: full family (16) is feasible (needs 31)
+        self.assertEqual(a["a_n_active"], 16)
         self.assertEqual(a["m_required"], 31)
         self.assertTrue(a["resolution_ok"])
         self.assertEqual(b["m_required"], 1)
@@ -182,18 +212,34 @@ class EvaluateCellsTests(unittest.TestCase):
             self.assertEqual(r["resolution_ok"], bundle.m >= r["m_required"])
 
     def test_rows_flag_unresolvable_when_m_too_small(self):
+        # alpha=0.001 needs m>=999 even for a single full-weight action
         bundle = _synthetic_bundle(m=9)
         bundle.corpus = "test-corpus"
         humans = [_words("LOW", *["word"] * 200)]
         ais = [_words("HIGH", *["word"] * 200)]
         rows, _, _detail = conformal.evaluate_cells(
-            bundle, humans, ais, ("A", "B"), (0.5,), score_fn=_stub_actions)
+            bundle, humans, ais, ("A", "B"), (0.001,), score_fn=_stub_actions)
         by_key = {(r["construction"], r["alpha"]): r for r in rows}
-        a = by_key[("A", 0.5)]
-        b = by_key[("B", 0.5)]
-        self.assertEqual(a["m_required"], 31)
+        a = by_key[("A", 0.001)]
+        b = by_key[("B", 0.001)]
+        self.assertEqual(a["a_n_active"], 0)
         self.assertFalse(a["resolution_ok"])
-        self.assertTrue(b["resolution_ok"])
+        self.assertFalse(b["resolution_ok"])
+
+    def test_concentrated_plan_makes_small_m_resolvable(self):
+        # m=19 cannot reject with equal 1/16 at alpha=0.05 (needs 319),
+        # but the resolution-aware active subset (k=1, full weight) can.
+        bundle = _synthetic_bundle(m=19)
+        bundle.corpus = "test-corpus"
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _detail = conformal.evaluate_cells(
+            bundle, humans, ais, ("A",), (0.05,), score_fn=_stub_actions)
+        a = rows[0]
+        self.assertEqual(a["a_n_active"], 1)
+        self.assertTrue(a["resolution_ok"])
+        self.assertEqual(a["m_required"], 19)
+        self.assertTrue(bundle.m >= a["m_required"])
 
 
 class BenchmarkMeansTests(unittest.TestCase):

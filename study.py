@@ -221,8 +221,10 @@ def write_markdown(report, path):
              "paraphrase/attack label; text re-pairing is not treated as paraphrasing.")
     L.append("- Unknown source metadata is reported as unknown and is never presented "
              "as a generator or domain comparison.")
-    L.append("- Construction A at α=0.001 needs m≥15999 ranks: reported as "
-             "infeasible by the resolution floor, not as zero power.")
+    L.append("- Construction A uses resolution-aware allocations (active equal-weight "
+             "subset sized by floor(alpha*(m+1))); full-family equal weights at "
+             "alpha=0.001 would need m>=15999 and are reported as infeasible when "
+             "the active subset also cannot reject.")
     with open(path, "w") as f:
         f.write("\n".join(L) + "\n")
 

@@ -686,7 +686,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
             <h3 class="tagline">Construction A</h3>
             <span class="badge" id="badge-A">…</span>
           </div>
-          <p class="panel-desc">Registered family · weighted conformal ranks · union bound</p>
+          <p class="panel-desc">Registered family · resolution-aware weights · union bound</p>
           <div class="verdict-row">
             <span class="verdict-dot" id="dot-A"></span>
             <h4 class="display-md" id="label-A">…</h4>
@@ -922,7 +922,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           rejection on the rank grid: useful detection power may require more data.
         </p>
         <table class="how-table" id="counts-table">
-          <thead><tr><th>Nominal α</th><th id="counts-head">A · equal allocations</th><th>B · one path rank</th></tr></thead>
+          <thead><tr><th>Nominal α</th><th id="counts-head">A · resolution-aware allocations</th><th>B · one path rank</th></tr></thead>
           <tbody id="counts-body"></tbody>
         </table>
         <p class="caption muted-light" style="margin-top:12px" id="counts-note"></p>
@@ -1057,7 +1057,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">What is Construction A?<span class="caret">›</span></button>
-          <div class="faq-a">Weighted Bonferroni testing over a registered family of prefix–detector actions. Each action a gets a conformal p-value p<sub>a</sub> = (1 + #{calibration ≥ test})/(m+1) and its own error allocation α·w<sub>a</sub> with fixed weights summing to ≤ 1. Alert if any executed action satisfies p<sub>a</sub> ≤ α·w<sub>a</sub>. The union bound protects score-dependent selection within the family. Its cost: with the current 16 equal allocations (4 detectors × 4 budgets), rejection at α = 0.01 needs m ≥ 1,599; the proposal's 12-action prototype needs m ≥ 1,199.</div>
+          <div class="faq-a">Weighted Bonferroni testing over a registered family of prefix–detector actions. Each action a gets a conformal p-value p<sub>a</sub> = (1 + #{calibration ≥ test})/(m+1) and its own error allocation α·w<sub>a</sub> with fixed weights summing to ≤ 1. Alert if any executed action satisfies p<sub>a</sub> ≤ α·w<sub>a</sub>. The union bound protects score-dependent selection within the family. Default allocations are resolution-aware: the budget is concentrated on the largest equal-weight active subset the rank grid can reject at the current m (route actions first), so Construction A fulfills its rejection requirement instead of splitting α into unreachable shares. Full-family equal weights (16 actions) would need m ≥ 319 at α=0.05 and m ≥ 1,599 at α=0.01.</div>
         </div>
 
         <div class="faq-item">
@@ -1436,25 +1436,37 @@ function resolutionHint(){
   fetch('/api/status').then(r=>r.json()).then(s=>{
     const c = s.calibration;
     const a = STATE.alpha;
-    const nA = c.n_actions, w = 1/nA;
-    const mReqA = Math.ceil(1/(a*w)) - 1;
+    const nA = c.n_actions;
+    // mirror conformal.max_equal_actions / default_a_weights
+    const k = Math.max(0, Math.min(nA, Math.floor(a * (c.m + 1))));
+    const w = k > 0 ? 1/k : 0;
+    const mReqA = k > 0 ? (Math.ceil(1/(a*w)) - 1) : (Math.ceil(1/a) - 1);
     const mReqB = Math.ceil(1/a) - 1;
+    const aTxt = k > 0
+      ? `A resolvable at α=${a} with ${k}/${nA} active actions (w=${k>0?(1/k).toFixed(4):'0'}), m ≥ ${mReqA} (${c.m >= mReqA ? 'yes' : 'no'})`
+      : `A cannot reject at α=${a} with m=${c.m} (need m ≥ ${mReqA} even for one full-weight action)`;
     $('resolution-hint').textContent =
-      `Calibration m=${c.m}. Construction A rejection resolvable at α=${a} for m ≥ ${mReqA} (${c.m >= mReqA ? 'yes' : 'no'}) · B for m ≥ ${mReqB} (${c.m >= mReqB ? 'yes' : 'no'}).`;
+      `Calibration m=${c.m}. ${aTxt} · B for m ≥ ${mReqB} (${c.m >= mReqB ? 'yes' : 'no'}).`;
   }).catch(()=>{});
 }
 function renderCounts(res){
-  $('counts-head').textContent = `A · ${res.n_actions} equal allocations`;
+  const rowPlan = (row) => {
+    const k = row.a_n_active;
+    if(k == null) return `${res.n_actions} equal`;
+    if(k <= 0) return 'infeasible';
+    return `${k} active (w=1/${k})`;
+  };
+  $('counts-head').textContent = `A · resolution-aware allocations`;
   $('counts-body').innerHTML = res.rows.map(row=>{
     return `<tr>
       <td><b>${row.alpha}</b></td>
-      <td>m ≥ <b>${row.a_m_req.toLocaleString()}</b> ${row.a_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
+      <td>m ≥ <b>${row.a_m_req.toLocaleString()}</b> · ${rowPlan(row)} ${row.a_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
       <td>m ≥ <b>${row.b_m_req.toLocaleString()}</b> ${row.b_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
     </tr>`;
   }).join('');
   $('counts-note').textContent =
-    `Current configuration: ${res.n_actions} equal allocations for A (w = 1/${res.n_actions}), one path rank for B, m = ${res.m}. ` +
-    `The proposal's prototype (3 detectors × 4 budgets = 12 allocations) gives the reference minima 1,199 at α=0.01 and 11,999 at α=0.001. ` +
+    `Current configuration: ${res.n_actions} registered actions; Construction A concentrates α on the largest equal-weight active subset the rank grid can reject (route actions first), so Corollary A holds at the current m when shown feasible. One path rank for B, m = ${res.m}. ` +
+    `Full-family equal weights (1/${res.n_actions}) would need m ≥ ${Math.ceil(res.n_actions/0.05)-1} at α=0.05. ` +
     `Counts permit rejection on the rank grid; useful power may require more data.`;
 }
 
@@ -1895,7 +1907,7 @@ function renderScreenVerdict(res){
       badge = 'no alert'; cls = 'good';
       lead = `Both constructions clear at α = ${res.alpha}.`;
       ticks.push(vTick('ok', '<b>A and B agree</b> — no action crossed its bound.'));
-      ticks.push(vTick('ok', `Both are <b>resolvable</b> at m = ${A.m} (A needs ≥ ${A.m_required}, B needs ≥ ${B.m_required}).`));
+      ticks.push(vTick('ok', `Both are <b>resolvable</b> at m = ${A.m}${A.n_active != null && A.n_active < A.n_actions ? ` (A: ${A.n_active} active actions, w = ${A.w})` : ''} (A needs ≥ ${A.m_required}, B needs ≥ ${B.m_required}).`));
       action = 'No flag at this α. Non-rejection does not certify human authorship — it means insufficient evidence to alert.';
     } else {
       if(!aOk){ badge = 'no alert (A structural)'; }
@@ -1903,8 +1915,8 @@ function renderScreenVerdict(res){
       if(!aOk && !bOk) badge = 'no alert (structural)';
       cls = 'mixed';
       lead = `No alert on either path, but ${!aOk && !bOk ? 'neither construction' : (!aOk ? 'Construction A' : 'Construction B')} can reject at this α with m = ${A.m}.`;
-      if(!aOk) ticks.push(vTick('warn', `A needs m ≥ <b>${A.m_required}</b> at α = ${A.alpha}; clear under A is <b>structurally unresolvable</b>.`));
-      else ticks.push(vTick('ok', `A is resolvable (needs m ≥ ${A.m_required}).`));
+      if(!aOk) ticks.push(vTick('warn', `A cannot reject at this α (needs m ≥ ${A.m_required}${A.n_active != null ? `, active w = ${A.w}` : ''}); clear under A is <b>structurally unresolvable</b>.`));
+      else ticks.push(vTick('ok', `A is resolvable${A.n_active != null ? ` with ${A.n_active} active action${A.n_active === 1 ? '' : 's'} (w = ${A.w})` : ''} (needs m ≥ ${A.m_required}).`));
       if(!bOk) ticks.push(vTick('warn', `B needs m ≥ <b>${B.m_required}</b> at α = ${B.alpha}; clear under B is <b>structurally unresolvable</b>.`));
       else ticks.push(vTick('ok', `B is resolvable (needs m ≥ ${B.m_required}).`));
       const need = Math.max(aOk ? 0 : A.m_required, bOk ? 0 : B.m_required);
@@ -1979,7 +1991,7 @@ function renderBenchmarkVerdict(res){
       const s = byC[c];
       if(!s.bad) continue;
       if(s.ok === 0){
-        push('bad', `<b>Construction ${c}</b> is structurally unresolvable at every α on this run (m = ${res.m}, needs m ≥ ${s.mreq} at the loosest of α = ${s.alphas.join(', ')}). Raise calibration size to read ${c} power.`);
+        push('bad', `<b>Construction ${c}</b> is structurally unresolvable at every α on this run (m = ${res.m}, needs m ≥ ${s.mreq} there). Raise calibration size so a positive-weight subset can reject.`);
       } else {
         push('warn', `Construction ${c} cannot reject at α = ${s.alphas.join(', ')} with m = ${res.m} (needs m ≥ ${s.mreq} there).`);
       }
@@ -2081,7 +2093,7 @@ function renderPanel(res, isA){
     `<span class="meta-chip">m required for rejection <b>${res.m_required}</b> · ${res.resolution_ok ? 'resolvable' : 'not resolvable'}</span>` +
     `<span class="meta-chip">tokens inspected <b>${res.tokens_inspected}</b> of ${res.tokens_full} · ${res.tokens_saved_pct}% saved</span>` +
     `<span class="meta-chip">actions executed <b>${res.actions_executed}</b></span>` +
-    (isA ? `<span class="meta-chip">w = 1/${res.steps.length}</span>` : '') +
+    (isA ? `<span class="meta-chip">active <b>${res.n_active ?? res.steps.length}</b>/${res.n_actions} · w = ${res.w != null ? res.w.toFixed(4) : ('1/' + res.steps.length)}</span>` : '') +
     (!isA && res.stopped_futility ? `<span class="meta-chip">futility stop <b>yes</b></span>` : '');
 
   const rows = res.steps.map(s=>{
@@ -2280,13 +2292,13 @@ const HELP_ITEMS = [
     math:'bino_t = log p_perf + CE(observer ‖ performer); fast_d = Σ(LL − μ_ref)/√Σσ²_ref (upstream analytic).' },
   { sel:'.chip-grid[data-group="alpha"]', title:'False-alert budget α',
     process:'α is the accepted risk of flagging a human-written document. Stricter α needs more calibration documents.',
-    math:'P(any alert | null) ≤ α. A splits into α·w_a per action; B uses one α on the path rank.' },
+    math:'P(any alert | null) ≤ α. A sizes its active subset from ⌊α(m+1)⌋; B uses one α on the path rank.' },
   { sel:'#btn-detect', title:'The screen action',
     process:'Runs both constructions on the same scoring pass: one forward pass, both decision rules.',
     math:'One precomputed prefix score table feeds Construction A and Construction B.' },
   { sel:'#table-A', title:'Construction A: registered family',
-    process:'Every registered action carries its own error share. Any executed action crossing its bound alerts; the union bound protects the whole family.',
-    math:'p_a = (1 + #{H_i ≥ S_a(X)}) / (m+1);  alert if p_a ≤ α·w_a.' },
+    process:'Every registered action carries its own error share. Default shares are resolution-aware: only the active equal-weight subset that can reject at the current m receives weight (route actions first). Any executed action crossing its bound alerts; the union bound protects the whole family.',
+    math:'p_a = (1 + #{H_i ≥ S_a(X)}) / (m+1);  alert if p_a ≤ α·w_a;  k = ⌊α(m+1)⌋ active actions, w = 1/k.' },
   { sel:'#table-B', title:'Construction B: complete path',
     process:'The frozen route is calibrated on its complete maxima; deployment follows a prefix and stops at the first crossing.',
     math:'M_π(X) = max_t g_a(S_a(X));  alert if p_t^path ≤ α;  partial max ≤ complete max.' },
@@ -2306,8 +2318,8 @@ const HELP_ITEMS = [
     process:'Aggregate checks: corpus match, structural resolution, human rates vs α, AI−human separation, and the B-vs-A efficiency comparison on resolvable rows.',
     math:'Matched human rate ≈ α; separation = AI − human; B cheaper if cost_B/cost_A ≤ 0.8 with paired B−A power lower bound > −0.02.' },
   { sel:'#counts-table', title:'Calibration counts',
-    process:'How many calibration documents a rejection requires on the rank grid. Useful power may need more.',
-    math:'A: m ≥ ⌈1/(α·w_a)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },
+    process:'How many calibration documents a rejection requires on the rank grid. Construction A sizes its active equal-weight subset so the requirement holds at the current m when feasible. Useful power may need more.',
+    math:'A: k = ⌊α(m+1)⌋ active, m ≥ ⌈1/(α/k)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },
   { sel:'#audit-n', title:'Independent audit',
     process:'Fixed-sample audit of the deployment false-alert rate with zero observed errors.',
     math:'U = 1 − γ^(1/N₀); at γ=0.05, N₀ ≥ 2,995 gives U < 0.001.' },
