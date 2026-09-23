@@ -61,7 +61,7 @@
 \newcommand{\proposalsubtitle}{A research proposal for cost-aware, within-document method selection}
 \newcommand{\proposalkeywords}{AI-generated text detection, sequential testing, conformal calibration, sample complexity, adaptive method selection, false-positive control}
 
-\newcommand{\proposalabstract}{We propose a protocol for deciding how much text to inspect and which detector to run before flagging a document for review or stopping without an alert. Researchers have developed sample-complexity bounds, length-aware conformal calibration, and sequential betting tests for document streams. We study adaptive inspection within one document, accounting for repeated looks and detector switches under a shared false-alert target. We distinguish independent-document sample counts from token budgets and measure detection power alongside error control. We use two finite-sample constructions: a registered family of prefix--detector tests with fixed error allocation, and calibration of the complete-path maximum of a frozen adaptive policy. Under document-level exchangeability, we prove marginal control of any false alert along the allowed inspection path; neither proof requires independent tokens. We quantify the calibration counts needed for rejection and set out a power--cost evaluation on public benchmarks. The experiments will compare matched-error procedures under generator and domain holdouts, paraphrasing, and mixed authorship, with subgroup audits where metadata permit them. We have yet to run these experiments. The proposed study will test whether adaptive inspection saves computation at comparable power and identify the conditions under which those savings fail.}
+\newcommand{\proposalabstract}{We propose a protocol for deciding how much text to inspect and which detector to run before flagging a document for review or stopping without an alert. Researchers have developed sample-complexity bounds, length-aware conformal calibration, and sequential betting tests for document streams. We study adaptive inspection within one document, accounting for repeated looks and detector switches under a shared false-alert target. We distinguish independent-document sample counts from token budgets and measure detection power alongside error control. We use two finite-sample constructions: a registered family of prefix--detector tests with fixed error allocation, and calibration of the complete-path maximum of a frozen adaptive policy. Under document-level exchangeability, we prove marginal control of any false alert along the allowed inspection path; neither proof requires independent tokens. We quantify the calibration counts needed for rejection and set out a power--cost evaluation on public benchmarks. The experiments will compare matched-error procedures under generator and domain holdouts, paraphrasing, and mixed authorship, with subgroup audits where metadata permit them. We report historical pilot measurements under this joint criterion; the designed multi-corpus study has not been completed. In the pilot, Construction B met the joint cost-and-power criterion in fourteen of eighteen cells, although most of those passes occurred where both policies had near-zero power and the cost limb alone decided the outcome. The proposed study will test whether adaptive inspection saves computation at comparable power and identify the conditions under which those savings fail.}
 
 \ifSpringerFormat
   \title[Sequential Testing for AI Text Detection]{\proposaltitle}
@@ -479,7 +479,7 @@ We will draw eligible English subsets from RAID and DetectRL for robust and real
 
 We will audit licenses and provenance before acquisition, check for duplication within and across benchmarks, and group related texts in one split. These groups will include near duplicates, paraphrases of the same original, and continuations of a shared prompt. We will keep human calibration populations distinct unless we can justify pooling, and report matched within-corpus experiments apart from cross-corpus stress tests. We will use available metadata for author-level splitting and subgroup audits; we will not infer missing attributes from prose.
 
-We will reserve disjoint development, human calibration, and evaluation partitions, fixing generator-family and domain holdouts before policy fitting. At experimental freeze, we will record model checkpoints and release identifiers along with prompts, seeds, and decoding settings. We have not run the detectors and must confirm access to the selected models and datasets before preregistration.
+We will reserve disjoint development, human calibration, and evaluation partitions, fixing generator-family and domain holdouts before policy fitting. At experimental freeze, we will record model checkpoints and release identifiers along with prompts, seeds, and decoding settings. We have not completed the designed multi-corpus detector runs; a historical GPT-2 pilot evaluation is reported below, and we must confirm access to the selected models and datasets before the full preregistration.
 
 \subsection{Comparators and ablations}
 
@@ -520,6 +520,78 @@ We will repeat calibration draws under matched populations with development choi
 \subsection{Simulation checks before expensive experiments}
 
 We will check the implementation using synthetic document-level trajectories with known null and alternative laws. We will simulate correlated Gaussian and heavy-tailed scores, ties, unequal document lengths, and mean shifts confined to late actions. Under independent uniform fixed-look \(p\)-values, we can check repeated-testing inflation against \(1-(1-\alpha)^K\). Correlated trajectories require a separate assessment. We will test rank orientation and tie handling, zero-weight actions, end-of-document and detector-failure rules, and calibration-resolution boundaries. These checks concern the simulated laws; we must assess exchangeability of real text through the data design.
+
+\section{Historical pilot results}\label{sec:results}
+
+\subsection{Scope and provenance}
+
+This section reports empirical Results from the historical study reports of 22 September 2026 (\texttt{study\_report.md}, \texttt{study\_report\_realdet.md} and their JSON counterparts). Those reports are explicitly labeled historical artifacts that predate two implementation fixes (metadata corrections and Construction A's active-set early-decision denominator). We present them as \emph{pilot measurements}, not as completion of the six-month evaluation plan and not as coverage of RQ4. Early-decision/SOP rates are omitted: the committed reports do not supply valid values for them, and any Construction~A early-decision figure implied by the historical file must be regenerated before use. Subgroup or domain breakdowns, paraphrase cells, length-bin analyses, and latency distributions are likewise omitted because the reports either lack those fields or mark them invalid pending regeneration.
+
+The primary endpoint is unchanged from Section~\ref{sec:experiments}: Construction B versus the fixed policy \texttt{ll@1024} at the same nominal level \(\alpha\). A cell passes if B reduces mean online cost by at least \(20\%\) \emph{and} the one-sided \(95\%\) confidence lower bound for the paired power difference \(p_B-p_{\mathrm{fixed}}\) exceeds \(-0.02\). Construction A versus B is secondary and descriptive.
+
+\subsection{Pilot configuration}
+
+The pilot scored documents with a single GPT-2 scorer under calibration size \(m=1600\) human documents and development size \(100\). Each cell used \(n=150\) human and \(n=150\) AI documents. The registered family comprised four detectors (likelihood, rank, log-rank, and a stylometric score) at four token budgets \(\{128,256,512,1024\}\), i.e.\ sixteen actions, with Construction A, Construction B, and the fixed \texttt{ll@1024} comparator. Corpora were RAID, DetectRL, and RealDet; variants were \emph{clean} and synthetic \emph{mixed} (fifty--fifty word splices, not naturalistic mixed authorship). Nominal levels were \(\alpha\in\{0.001,0.01,0.05\}\). There were no valid paraphrase or attack cells in these runs.
+
+\subsection{Primary criterion: Construction B versus fixed}
+
+Table~\ref{tab:results-primary} reports the joint criterion for all eighteen cells. Construction B passed in \(14/18\) cells. All four failures were \emph{clean} variants at low \(\alpha\): RAID clean at \(\alpha\in\{0.001,0.01\}\) and RealDet clean at \(\alpha\in\{0.001,0.01\}\). Failures on the cost limb alone occurred for RAID clean at \(\alpha=0.001\) (gain \(0.99\%\)) and, with a simultaneous power-limb failure, RAID clean at \(\alpha=0.01\) (gain \(18.19\%\), lower bound \(-0.0257\)). RealDet clean failed both limbs at \(\alpha=0.001\) and \(\alpha=0.01\). Every DetectRL cell and every mixed cell passed at every level. Twelve of the fourteen passes are cost-limb-only outcomes in which both B and fixed power were at most \(2.7\%\) (or zero); only RAID clean at \(\alpha=0.05\) and RealDet clean at \(\alpha=0.05\) combine a pass with non-trivial power. RealDet clean at \(\alpha=0.05\) passed with cost gain \(20.90\%\) and lower bound \(-0.0196\) (the unrounded JSON value; the Markdown rounding to \(-0.020\) would misclassify this cell against the strict inequality \(>-0.02\) and must not be quoted as the bound).
+
+\begin{table}[t]
+\caption{Primary criterion: Construction B versus fixed \texttt{ll@1024}. Cost gain is \(1-r\) with \(r\) the AI-side mean-token ratio; power difference and one-sided \(95\%\) lower bound are paired on the \(150\) AI documents. Joint pass requires gain \(\ge 20\%\) and lower bound \(>-0.02\). Values are historical pilot measurements of 22 September 2026}
+\label{tab:results-primary}
+\small
+\begin{tabularx}{\textwidth}{@{}llrrrc@{}}
+\toprule
+Corpus / variant & \(\alpha\) & Cost ratio \(r\) & Cost gain & Power diff.\ (LB) & Joint \\
+\midrule
+RAID / clean   & 0.001 & 0.9901 &  0.99\% & $-0.0067$ ($-0.0176$) & Fail \\
+RAID / clean   & 0.01  & 0.8181 & 18.19\% & $-0.0067$ ($-0.0257$) & Fail \\
+RAID / clean   & 0.05  & 0.6404 & 35.96\% & $+0.0000$ ($-0.0156$) & Pass \\
+RAID / mixed   & 0.001 & 0.6761 & 32.39\% & $+0.0000$ ($+0.0000$) & Pass \\
+RAID / mixed   & 0.01  & 0.6761 & 32.39\% & $+0.0000$ ($+0.0000$) & Pass \\
+RAID / mixed   & 0.05  & 0.6761 & 32.39\% & $-0.0067$ ($-0.0176$) & Pass \\
+DetectRL / clean & 0.001 & 0.6116 & 38.84\% & $+0.0000$ ($+0.0000$) & Pass \\
+DetectRL / clean & 0.01  & 0.6116 & 38.84\% & $+0.0000$ ($+0.0000$) & Pass \\
+DetectRL / clean & 0.05  & 0.5964 & 40.36\% & $+0.0067$ ($-0.0179$) & Pass \\
+DetectRL / mixed & 0.001 & 0.5501 & 44.99\% & $+0.0000$ ($+0.0000$) & Pass \\
+DetectRL / mixed & 0.01  & 0.5501 & 44.99\% & $+0.0000$ ($+0.0000$) & Pass \\
+DetectRL / mixed & 0.05  & 0.5435 & 45.65\% & $+0.0133$ ($-0.0021$) & Pass \\
+RealDet / clean & 0.001 & 0.9747 &  2.53\% & $-0.0400$ ($-0.0664$) & Fail \\
+RealDet / clean & 0.01  & 0.9269 &  7.31\% & $-0.0267$ ($-0.0534$) & Fail \\
+RealDet / clean & 0.05  & 0.7910 & 20.90\% & $+0.0200$ ($-0.0196$) & Pass \\
+RealDet / mixed & 0.001 & 0.7054 & 29.46\% & $+0.0000$ ($+0.0000$) & Pass \\
+RealDet / mixed & 0.01  & 0.7054 & 29.46\% & $+0.0000$ ($+0.0000$) & Pass \\
+RealDet / mixed & 0.05  & 0.6895 & 31.05\% & $+0.0200$ ($+0.0011$) & Pass \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The pattern is consistent with the cost mechanism in Fig.~\ref{fig:constructions}: savings accumulate when human documents stop early under futility, whereas clean short documents that continue to the full budget leave little room for a twenty-percent reduction. On RAID clean, the historical human-side \emph{futility} rate for B was \(73\%\) at every level (this is a futility-stop rate, not an early-decision/SOP rate, which the reports forbid using without regeneration), yet the AI-side cost ratio used by the criterion remained near one at \(\alpha=0.001\) (\(r=0.9901\)), so the cost limb failed even though the power lower bound alone would have passed. On DetectRL, documents are longer (fixed mean inspected tokens about \(571\)--\(576\)); B reduced mean inspected tokens substantially (for example \(335\) versus \(576\) on clean at \(\alpha\le 0.01\)) and passed every cell.
+
+\subsection{RQ1: observed human false-alert rates}
+
+Across all \(54\) construction--cell--level rows, the observed human false-alert rate never exceeded nominal \(\alpha\). At \(\alpha=0.001\) every human count was \(0/150\). At \(\alpha=0.01\) the maximum was \(1/150\) (\(0.67\%\), fixed RealDet clean). At \(\alpha=0.05\) the maximum was \(7/150\) (\(4.67\%\), Construction B on RealDet clean and RealDet mixed); fixed RealDet clean recorded \(5/150\) (\(3.33\%\)) and DetectRL clean fixed \(3/150\) (\(2.00\%\)). These are descriptive point estimates only. With \(n_0=150\) and zero events, the one-sided Clopper--Pearson upper bound is \(1-0.05^{1/150}\approx 0.0198\), far above \(0.001\); the manuscript's own planning arithmetic requires at least \(2{,}995\) zero-event human documents to place that bound below \(0.001\). The pilot therefore cannot certify RQ1 at the low-\(\alpha\) targets, consistent with the preregistered plan to treat the low-error arm as conditional on audit size. We do not quote any ``Human FPR by subgroup'' line from the Markdown reports: those lines carry legacy labels marked invalid (RAID \texttt{abstracts} / RealDet \texttt{all} placeholders) and are not domain or generator analyses.
+
+\subsection{RQ2: power and cost against the development target}
+
+The development target was \(1-\beta=0.80\). Construction B reached this target in exactly one of eighteen cells: RAID clean at \(\alpha=0.05\), with power \(139/150=92.67\%\), equal to the fixed comparator's \(139/150\). Every other B cell is at most \(75.33\%\) (RAID clean, \(\alpha=0.01\), \(113/150\)); nine cells have B power \(0/150\). Most DetectRL and mixed cells had B and fixed power at or below a few percent (twelve of the fourteen joint passes fall in this near-zero-power band), so those passes are driven almost entirely by the cost limb and are not evidence that the power target was met or that power was ``comparable'' outside the single high-power cell. On RealDet clean, B power was \(8/150\), \(22/150\), and \(60/150\) at \(\alpha=0.001\), \(0.01\), and \(0.05\), versus fixed \(14/150\), \(26/150\), and \(57/150\); B gave up power at the two lower levels while also failing the cost limb.
+
+Construction A's zeros at \(\alpha=0.001\) must be read as \emph{infeasible under the resolution floor}, not as measured zero power: equal-weight allocation over sixteen active actions requires \(m\ge 15{,}999\) at \(\alpha=0.001\), whereas the pilot used \(m=1600\). At \(\alpha=0.05\) on RAID clean, A reached \(84/150=56.0\%\) power while B reached \(92.67\%\), illustrating the secondary A-versus-B gap when A spends error across the full registered family.
+
+\subsection{RQ3: Construction A versus Construction B (secondary)}
+
+Paired A-versus-B comparisons are secondary and carry no pass/fail rule. Where both constructions had non-trivial power, B was typically more powerful and cheaper than A on the same documents. On RAID clean at \(\alpha=0.01\), the power difference \(A-B\) was \(-0.6867\) (one-sided \(95\%\) lower bound \(-0.7492\)) with cost ratio \(B/A=0.8087\): A alerts far less often while still inspecting more of the registered family on average (mean actions about \(15.5\) versus \(2.3\) for B). On RAID clean at \(\alpha=0.05\), \(A-B=-0.3667\) (lower bound \(-0.4316\)), \(B/A=0.7014\). RealDet clean at \(\alpha=0.001\) gave \(A-B=-0.0533\) (lower bound \(-0.0836\)), \(B/A=0.8207\). Several mixed and DetectRL cells had zero power difference because both constructions alerted on none or all of the \(150\) AI documents; those cells are uninformative for RQ3 and are not evidence of equivalence.
+
+\subsection{RQ4: sensitivity analyses not covered by this pilot}
+
+RQ4 (domain, length, generator, and editing sensitivity) is \emph{not} addressed by these reports. Historical subgroup labels were placeholders (RAID \texttt{abstracts}, RealDet \texttt{all}) and are explicitly marked ``legacy label invalid''; RealDet carries no generator or domain metadata; mixed authorship is limited to synthetic fifty--fifty splices; there are no valid paraphrase cells; there is no length-bin breakdown; and the scorer is a single GPT-2 model. Claims about robustness under shift, editing, or subgroup fairness must await the designed study.
+
+\subsection{What this pilot does and does not establish}
+
+The pilot supports three limited statements. First, the implementation can execute the preregistered joint criterion end to end and produce a pass/fail map (\(14/18\) passes with failures localized to clean low-\(\alpha\) cells; twelve of those passes are cost-limb-only at near-zero power). Second, under document-level exchangeability on these calibration draws, observed human false-alert rates stayed at or below nominal in every cell, which is consistent with---but does not prove at \(n=150\)---the marginal guarantee. Third, cost savings for B are real on longer corpora and vanish when documents are short or when the alternative is too weak to stop early with power, which is exactly the regime in which the twenty-percent cost limb fails.
+
+The pilot does \emph{not} complete the manuscript's planned evaluation. It lacks the fixed-short, fixed-max, MCP, multiplicity-corrected escalation, learned-routing, and repeated-\(\alpha\) negative-control arms; it lacks independent audit sizes sufficient for \(\alpha=0.001\); it lacks valid RQ4 breakdowns (domain, generator, paraphrase, length bins); it predates the active-set early-decision fix and the metadata corrections; it uses a single generator (GPT-2) and synthetic splices for mixed authorship; and \(n=150\) leaves wide binomial uncertainty on every rate. We claim neither completion of the designed multi-corpus study nor achievement of \(1-\beta=0.80\) outside the single RAID-clean \(\alpha=0.05\) cell, and we do not report early-decision/SOP rates until the reports are regenerated under the current code.
 
 \section{Risks, responsible interpretation, and limitations}\label{sec:risks}
 
@@ -574,7 +646,7 @@ We propose to test adaptive within-document inspection against fixed policies at
 \section*{Statements and Declarations}
 
 \subsection*{Manuscript status}
-We checked the literature on 7 September 2026 against primary papers and publisher or proceedings records. The accompanying Burnwatch prototype implements Constructions A and B and the fixed \texttt{ll@1024} comparator, including resolution-aware error allocations for A; a historical study report exists under \texttt{study\_report.md}. The designed multi-corpus study has not been completed. We present the propositions as consequences of the stated assumptions and make no claim of new foundational results.
+We checked the literature on 7 September 2026 against primary papers and publisher or proceedings records. The accompanying Burnwatch prototype implements Constructions A and B and the fixed \texttt{ll@1024} comparator, including resolution-aware error allocations for A. Historical study reports exist under \texttt{study\_report.md} and \texttt{study\_report\_realdet.md}; Section~\ref{sec:results} summarizes their joint primary criterion (Construction~B passed \(14/18\) cells; most passes were cost-limb-only at near-zero power). Those reports predate two implementation fixes, omit valid early-decision, subgroup, paraphrase, and length-bin analyses, and use a single GPT-2 scorer with synthetic mixed-authorship splices. The designed multi-corpus study has not been completed. We present the propositions as consequences of the stated assumptions and make no claim of new foundational results.
 
 \subsection*{Funding}
 No funding was received to assist with the preparation of this manuscript. Authors must confirm or amend this statement before submission.
