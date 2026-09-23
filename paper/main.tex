@@ -16,7 +16,7 @@
 \usepackage{graphicx}
 \usepackage{xurl}
 \usepackage{microtype}
-\usepackage[title]{appendix}
+\IfFileExists{sn-jnl.cls}{}{\usepackage[title]{appendix}}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.geometric,calc}
 \newtheorem{proposition}{Proposition}
@@ -34,6 +34,18 @@
 \newcommand{\calH}{\mathcal{H}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \raggedbottom
+
+\ifSpringerFormat
+  \makeatletter
+  \def\email#1{\global\advance\emailcnt by 1\relax%
+    \if@corauemail%
+      \g@addto@macro\corrauthemail{#1; }%
+    \else%
+      \g@addto@macro\authemail{#1; }%
+    \fi}
+  \hypersetup{colorlinks=false,hidelinks}
+  \makeatother
+\fi
 
 \makeatletter
 \ifSpringerFormat
@@ -55,6 +67,7 @@
   \title[Sequential Testing for AI Text Detection]{\proposaltitle}
   \subtitle{\proposalsubtitle}
   \author*[1]{\fnm{Charlie Margaret} \sur{Balagtas}}
+  \email{corresponding.author@replace-before-submission.edu.ph}
   \author[1]{\fnm{Michael Joshua} \sur{Buluran}}
   \author[1]{\fnm{Jeff Roel} \sur{Durmiendo}}
   \author[1]{\fnm{Rizzette E.} \sur{Lopez}}
@@ -136,7 +149,7 @@ Fig.~\ref{fig:workflow} shows the end-to-end workflow from split construction th
   \node[note, text width=0.94\textwidth, below=6pt of scr]
     {Exchangeability is at the document level; tokens inside a document may be arbitrarily dependent. Outputs: \emph{flag for review} or \emph{no alert at this budget} (insufficient evidence).};
 \end{tikzpicture}
-\caption{\textbf{Fig.}~\textbf{1} End-to-end screening workflow. Development freezes routing, weights, and the futility rule without touching calibration ranks. Offline calibration scores every registered action (Construction A) and replays the complete frozen route to obtain path maxima (Construction B). Online screening executes a prefix--detector action, checks the appropriate rank against its boundary, and either alerts or continues under the routing and futility rules}
+\caption{End-to-end screening workflow. Development freezes routing, weights, and the futility rule without touching calibration ranks. Offline calibration scores every registered action (Construction A) and replays the complete frozen route to obtain path maxima (Construction B). Online screening executes a prefix--detector action, checks the appropriate rank against its boundary, and either alerts or continues under the routing and futility rules}
 \label{fig:workflow}
 \end{figure}
 
@@ -176,7 +189,7 @@ Fig.~\ref{fig:workflow} shows the end-to-end workflow from split construction th
   \draw[arr, dashed] (p3.south) -- (cb.north);
   \node[lab, right=4pt of p4.east, anchor=west] {cap};
 \end{tikzpicture}
-\caption{\textbf{Fig.}~\textbf{2} The two validity constructions on the same prefix route. Construction A splits a single \(\alpha\) across registered actions and relies on a union bound over whatever subset is executed. Construction B freezes one route, calibrates the complete-path maximum once, and lets partial-path ranks inherit the terminal guarantee, so early stopping does not spend error across looks}
+\caption{The two validity constructions on the same prefix route. Construction A splits a single \(\alpha\) across registered actions and relies on a union bound over whatever subset is executed. Construction B freezes one route, calibrates the complete-path maximum once, and lets partial-path ranks inherit the terminal guarantee, so early stopping does not spend error across looks}
 \label{fig:constructions}
 \end{figure}
 
@@ -214,7 +227,7 @@ Hans et al.\ view the text through two closely related language models \citep{ha
 Alongside these methods we keep average token rank and log-rank scores, which require only one scoring model and no sampling or second network. On DetectRL, log-rank and rank baselines often match or exceed Fast-DetectGPT under attack \citep{wu2024}, so they remain first-class registered actions rather than merely cheap fallbacks. The stylometric (stop-slop) score is a lexicon hit-count over the inspected prefix; it is a surface signal for routing and reporting, not a substitute for probabilistic evidence.
 
 \begin{table}[t]
-\caption{\textbf{Table}~\textbf{1} Zero-shot score families used or considered as registered detectors. Costs are qualitative relative orders for one prefix under our planned batching; exact milliseconds are hardware-dependent and will be profiled}\label{tab:detectors}
+\caption{Zero-shot score families used or considered as registered detectors. Costs are qualitative relative orders for one prefix under our planned batching; exact milliseconds are hardware-dependent and will be profiled}\label{tab:detectors}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.16\textwidth}Yp{0.14\textwidth}p{0.16\textwidth}@{}}
 \toprule
@@ -265,7 +278,7 @@ Stop-slop (stylometric) & Lexicon hit-rate over the inspected prefix & 0 (string
   \draw[arr] (reg.south) -- (dec.north);
   \node[lab, right=2pt of dec.east, anchor=west] {};
 \end{tikzpicture}
-\caption{\textbf{Fig.}~\textbf{3} Score families and how they enter the registered action family. DetectGPT's marginal curvature needs roughly a hundred perturb--rescore cycles and is held as an expensive comparator; Fast-DetectGPT estimates conditional curvature in one sampling batch; Binoculars contrasts observer and performer perplexities; likelihood and rank scores are single-pass. Each enabled score multiplies the four prefix budgets to form the registered actions that Construction A weights and Construction B freezes into a route}
+\caption{Score families and how they enter the registered action family. DetectGPT's marginal curvature needs roughly a hundred perturb--rescore cycles and is held as an expensive comparator; Fast-DetectGPT estimates conditional curvature in one sampling batch; Binoculars contrasts observer and performer perplexities; likelihood and rank scores are single-pass. Each enabled score multiplies the four prefix budgets to form the registered actions that Construction A weights and Construction B freezes into a route}
 \label{fig:detectors}
 \end{figure}
 
@@ -282,7 +295,7 @@ Koning and van Meer induce sequential tests from terminal tests \citep{koning202
 Kirchenbauer et al.\ embed watermarks during generation \citep{kirchenbauer2023}. Xie et al.\ combine watermark evidence with conformal methods to assess permissible versus impermissible AI assistance in educational settings \citep{xie2026}. We restrict this study to passive detection of unwatermarked text and make no claim to originate conformal AI-use decisions. Table~\ref{tab:position} positions these strands against the present proposal.
 
 \begin{table}[t]
-\caption{\textbf{Table}~\textbf{2} Prior work and the scope of the proposed study}\label{tab:position}
+\caption{Prior work and the scope of the proposed study}\label{tab:position}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}YY@{}}
 \toprule
@@ -475,7 +488,7 @@ We will calibrate operational comparators on the same human-reference population
 We will vary the numbers of looks and detectors, calibration counts, and equal versus development-chosen error weights. We will compare prefix inspection with preregistered block inspection and fixed routes with adaptive routes, accounting for added block search through multiplicity correction or complete-path calibration. We will report the independent-document source-stream comparison with Chen and Wang apart from the single-document results \citep{chen2025}.
 
 \begin{table}[t]
-\caption{\textbf{Table}~\textbf{3} Planned evaluation conditions and endpoints}\label{tab:design}
+\caption{Planned evaluation conditions and endpoints}\label{tab:design}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}YY@{}}
 \toprule
@@ -530,7 +543,7 @@ Reviewers may use the proposed system to prioritize documents for inspection. We
 The indicative schedule in Table~\ref{tab:timeline} spans six months conditional on data and compute access.
 
 \begin{table}[t]
-\caption{\textbf{Table}~\textbf{4} Indicative six-month research plan, conditional on data and compute access}\label{tab:timeline}
+\caption{Indicative six-month research plan, conditional on data and compute access}\label{tab:timeline}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.12\textwidth}YY@{}}
 \toprule
