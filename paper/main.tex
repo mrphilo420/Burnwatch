@@ -17,6 +17,8 @@
 \usepackage{xurl}
 \usepackage{microtype}
 \usepackage[title]{appendix}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.geometric,calc}
 \newtheorem{proposition}{Proposition}
 \newtheorem{assumption}{Assumption}
 \newtheorem{lemma}{Lemma}[section]
@@ -52,7 +54,7 @@
 \ifSpringerFormat
   \title[Sequential Testing for AI Text Detection]{\proposaltitle}
   \subtitle{\proposalsubtitle}
-  \author[1]{\fnm{Charlie Margaret} \sur{Balagtas}}
+  \author*[1]{\fnm{Charlie Margaret} \sur{Balagtas}}
   \author[1]{\fnm{Michael Joshua} \sur{Buluran}}
   \author[1]{\fnm{Jeff Roel} \sur{Durmiendo}}
   \author[1]{\fnm{Rizzette E.} \sur{Lopez}}
@@ -62,9 +64,10 @@
   \maketitle
 \else
   \title{\proposaltitle\\[0.5em]{\large\proposalsubtitle}}
-  \author{Charlie Margaret Balagtas \and Michael Joshua Buluran
+  \author{Charlie Margaret Balagtas\,$^*$ \and Michael Joshua Buluran
     \and Jeff Roel Durmiendo \and Rizzette E. Lopez}
-  \date{\small Content preview: Springer class unavailable}
+  \date{\small Content preview: Springer class unavailable\\
+    \small $^*$Corresponding author e-mail to be supplied at submission}
   \maketitle
   \begin{center}
     Bulacan State University
@@ -89,17 +92,186 @@ We will develop and evaluate two components:
 \item A power--cost evaluation of adaptive inspection, including the effects of limited calibration data, weak separation, and distribution shift.
 \end{enumerate}
 
+Fig.~\ref{fig:workflow} shows the end-to-end workflow from split construction through offline calibration to online screening. Fig.~\ref{fig:constructions} contrasts the two validity constructions on the same inspection route.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  stage/.style={draw, rounded corners=3pt, align=center, inner sep=5pt, fill=black!3},
+  band/.style={draw, rounded corners=4pt, align=left, inner sep=5pt, fill=black!2},
+  step/.style={draw, rounded corners=2pt, align=center, inner sep=3.5pt, fill=white},
+  arr/.style={-{Stealth[length=4.5pt]}, thick},
+  note/.style={font=\scriptsize\itshape, text=black!55, align=left}
+]
+  \node[band, text width=0.94\textwidth] (dev) {
+    \textbf{1 · Development (frozen)}\quad
+    corpus splits (lineage-grouped)
+    \;$\to$\;
+    score orientation, routing $\pi$, weights $w_a$
+    \;$\to$\;
+    futility rule and cost model\\[1pt]
+    {\scriptsize\itshape No calibration ranks or test document used here.}
+  };
+  \node[band, text width=0.94\textwidth, below=12pt of dev] (cal) {
+    \textbf{2 · Human calibration (offline)}\quad
+    $H_1,\ldots,H_m$
+    \;$\to$\;
+    A: score all registered actions
+    \;\textbar\;
+    B: replay full route $\to M_\pi(H_i)$\\[1pt]
+    {\scriptsize\itshape Store ranks / path maxima; resolution floor $m\geq\lceil1/(\alpha w_a)\rceil-1$.}
+  };
+  \node[band, text width=0.94\textwidth, below=12pt of cal] (scr) {
+    \textbf{3 · Online screening (test document $X$)}\\[3pt]
+    \texttt{low-cost \(a_1\)}\;$\to$\;
+    route / extend \(b_k\)\;$\to$\;
+    switch detector\;$\to$\;
+    futility or cap\;$\to$\;
+    no alert\\[3pt]
+    {\scriptsize\itshape Alert if $p_a\leq\alpha w_a$ or $p_t^{\rm path}\leq\alpha$; otherwise stop on futility, end of evidence, or resource cap.}
+  };
+  \draw[arr] (dev.south) -- (cal.north);
+  \draw[arr] (cal.south) -- (scr.north);
+  \node[note, text width=0.94\textwidth, below=6pt of scr]
+    {Exchangeability is at the document level; tokens inside a document may be arbitrarily dependent. Outputs: \emph{flag for review} or \emph{no alert at this budget} (insufficient evidence).};
+\end{tikzpicture}
+\caption{\textbf{Fig.}~\textbf{1} End-to-end screening workflow. Development freezes routing, weights, and the futility rule without touching calibration ranks. Offline calibration scores every registered action (Construction A) and replays the complete frozen route to obtain path maxima (Construction B). Online screening executes a prefix--detector action, checks the appropriate rank against its boundary, and either alerts or continues under the routing and futility rules}
+\label{fig:workflow}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt},
+  arr/.style={-{Stealth[length=4pt]}, thick},
+  good/.style={box, fill=black!3},
+  lab/.style={font=\scriptsize\itshape, text=black!55}
+]
+  \node[box, fill=black!8] (p1) {\(b_1{=}128\)};
+  \node[box, fill=black!8, right=10pt of p1] (p2) {\(b_2{=}256\)};
+  \node[box, fill=black!8, right=10pt of p2] (p3) {\(b_3{=}512\)};
+  \node[box, fill=black!8, right=10pt of p3] (p4) {\(b_4{=}1024\)};
+  \draw[arr] (p1) -- (p2);
+  \draw[arr] (p2) -- (p3);
+  \draw[arr] (p3) -- (p4);
+  \node[lab, above=4pt of p1.west, anchor=west] {shared inspection path (detector may switch at each step)};
+
+  \node[good, below=16pt of $(p1.south)!0.5!(p2.south)$, text width=0.42\textwidth] (ca) {
+    \textbf{Construction A · error budget}\\
+    Each executed action has \(\alpha_a=\alpha w_a\).\\
+    Alert if any \(p_a\leq\alpha_a\).\\
+    {\scriptsize Union bound \(\Rightarrow\) \(\Prob(\text{any alert})\leq\sum\alpha_a\leq\alpha\).\\
+    Active subset sized by \(\lfloor\alpha(m+1)\rfloor\).}
+  };
+  \node[good, below=16pt of $(p3.south)!0.5!(p4.south)$, text width=0.42\textwidth] (cb) {
+    \textbf{Construction B · path maximum}\\
+    Calibrate \(M_\pi=\max_t g_a(S_a)\) on complete routes.\\
+    Alert at first \(t\) with \(p_t^{\rm path}\leq\alpha\).\\
+    {\scriptsize Partial max \(\leq\) complete max \(\Rightarrow\) early stop inherits terminal rank.}
+  };
+
+  \draw[arr, dashed] (p2.south) -- (ca.north);
+  \draw[arr, dashed] (p3.south) -- (cb.north);
+  \node[lab, right=4pt of p4.east, anchor=west] {cap};
+\end{tikzpicture}
+\caption{\textbf{Fig.}~\textbf{2} The two validity constructions on the same prefix route. Construction A splits a single \(\alpha\) across registered actions and relies on a union bound over whatever subset is executed. Construction B freezes one route, calibrates the complete-path maximum once, and lets partial-path ranks inherit the terminal guarantee, so early stopping does not spend error across looks}
+\label{fig:constructions}
+\end{figure}
+
 \section{Literature validation and scope of novelty}\label{sec:literature}
 
 \subsection{Detectability and sample complexity}
 
 Chakraborty et al.\ derive sample-complexity results under stated settings, including an independent and identically distributed (i.i.d.) formulation \citep{chakraborty2024}. We use their analysis to motivate evidence budgeting; applying it to word counts would require assumptions about within-document dependence. Sadasivan et al.\ study detection limits under distributional similarity and adversarial paraphrasing \citep{sadasivan2025}. Researchers can gain power from independent evidence against a fixed separated alternative, yet encounter weak detection when the distributions approach each other or an adversary edits the text. A learned score can discard information that an oracle test would use.
 
-\subsection{Scores, calibration, and sequential evidence}
+\subsection{Zero-shot detector scores}\label{sec:detectors}
 
-Mitchell et al.\ estimate probability curvature through perturbations in DetectGPT. Bao et al.\ use conditional probabilities in Fast-DetectGPT, and Hans et al.\ contrast two language models in Binoculars \citep{mitchell2023,bao2024,hans2024}. We will profile these scores on the study hardware, recording model size, context reuse, and batching. Their relative cost can change with those settings.
+Three zero-shot score families motivate the registered detector set (Table~\ref{tab:detectors}). We summarize their mechanisms, cost profiles, and how each enters our protocol; Fig.~\ref{fig:detectors} contrasts them schematically.
+
+\paragraph*{DetectGPT (probability curvature).}
+Mitchell et al.\ perturb a candidate passage with a masked language model \(q_\varphi\), rescore each perturbation under a scoring model \(p_\theta\), and compare the original log-probability to the mean of the perturbed scores \citep{mitchell2023}:
+\begin{equation}
+ d(x,p_\theta,q_\varphi)=\log p_\theta(x)
+ -\Expect_{\tilde x\sim q_\varphi(\cdot\mid x)}[\log p_\theta(\tilde x)].
+ \label{eq:detectgpt}
+\end{equation}
+Machine-generated text tends to sit near a local maximum of the model's probability landscape, so \(d\) is positive under the source model and near zero for human text. Estimating the expectation requires on the order of one hundred perturbation--rescore cycles, which makes DetectGPT an expensive white-box comparator rather than a routine prefix action. On DetectRL, DetectGPT's average AUROC falls well below simpler rank baselines under real-world attacks \citep{wu2024}, consistent with our decision to keep it off the default inspection route.
+
+\paragraph*{Fast-DetectGPT (conditional probability curvature).}
+Bao et al.\ replace the perturb--rescore loop with conditional independent sampling \citep{bao2024}. They sample alternative next-tokens from a reference model given the fixed passage, evaluate the conditional probability of the observed continuation in one forward pass, and form a standardized residual
+\begin{equation}
+ \hat d_x=\frac{\log p_\theta(x)-\tilde\mu}{\tilde\sigma},
+ \label{eq:fastdetectgpt}
+\end{equation}
+where \(\tilde\mu,\tilde\sigma\) are moments of the sampled conditional log-probabilities. The method reports roughly \(75\%\) relative AUROC gains over DetectGPT in both white-box and black-box settings and about a \(340\times\) speedup, because all samples are evaluated in a single predictive distribution rather than through hundreds of model calls. Fast-DetectGPT is therefore a natural optional registered extension: one action can compute the score in a single batched pass, and its cost profile is closer to a single scoring model than to DetectGPT's perturbation pipeline.
+
+\paragraph*{Binoculars (contrastive perplexity ratio).}
+Hans et al.\ view the text through two closely related language models \citep{hans2024}. An observer model supplies log-perplexity of the observed tokens; a performer model supplies next-token predictions whose perplexity under the observer is the cross-perplexity. The Binoculars score is the ratio of the two perplexities: machine text written by a similar generator drives the two perplexities toward each other, while human text leaves a larger gap. Without training data or model-specific tuning, Binoculars reports over \(90\%\) detection of ChatGPT text at a false-positive rate of \(0.01\%\) across news, creative writing, and student essays, and remains competitive under domain shift because modern LLMs share architecture and training-corpus structure. The detector needs two forward passes per prefix (observer and performer), so its per-action cost sits between a single likelihood score and DetectGPT's perturbation bank. We register Binoculars as an optional contrasting-model action and profile it under the same prefix budgets as the single-model scores.
+
+\paragraph*{Rank and log-rank baselines.}
+Alongside these methods we keep average token rank and log-rank scores, which require only one scoring model and no sampling or second network. On DetectRL, log-rank and rank baselines often match or exceed Fast-DetectGPT under attack \citep{wu2024}, so they remain first-class registered actions rather than merely cheap fallbacks. The stylometric (stop-slop) score is a lexicon hit-count over the inspected prefix; it is a surface signal for routing and reporting, not a substitute for probabilistic evidence.
+
+\begin{table}[t]
+\caption{\textbf{Table}~\textbf{1} Zero-shot score families used or considered as registered detectors. Costs are qualitative relative orders for one prefix under our planned batching; exact milliseconds are hardware-dependent and will be profiled}\label{tab:detectors}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.16\textwidth}Yp{0.14\textwidth}p{0.16\textwidth}@{}}
+\toprule
+Score family & Mechanism & Model calls per prefix & Role in the protocol \\
+\midrule
+Likelihood (LL) & Mean per-token log-probability under one scoring LM & 1 & Fixed comparator (\texttt{ll@1024}); registered action \\
+Rank / log-rank & Mean token rank or log-rank under one scoring LM & 1 & Registered action (cheap, robust baselines) \\
+Binoculars & Observer perplexity / cross-perplexity from a performer pair & 2 & Optional contrasting-model registered action \\
+Fast-DetectGPT & Conditional probability curvature via independent token sampling & 1 scoring + 1 sampling batch & Optional registered extension \\
+DetectGPT & Marginal probability curvature via mask-fill perturbations & \(\sim100\) perturb--rescore cycles & Expensive comparator; not on the default route \\
+Stop-slop (stylometric) & Lexicon hit-rate over the inspected prefix & 0 (string match) & Surface signal / routing feature only \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, minimum height=1.1em},
+  det/.style={box, fill=black!4},
+  opt/.style={box, densely dashed},
+  lab/.style={font=\scriptsize\itshape, text=black!60},
+  arr/.style={-{Stealth[length=4pt]}, thick}
+]
+  \node[det] (dg) {DetectGPT\\ \scriptsize perturb \(\cdot\) score};
+  \node[det, right=8pt of dg] (fd) {Fast-DetectGPT\\ \scriptsize sample \(\cdot\) cond.\ score};
+  \node[det, right=8pt of fd] (bi) {Binoculars\\ \scriptsize PPL / X-PPL};
+  \node[det, right=8pt of bi] (rk) {LL / rank / log-rank\\ \scriptsize single LM};
+
+  \node[lab, above=3pt of dg] {expensive curvature};
+  \node[lab, above=3pt of fd] {fast curvature};
+  \node[lab, above=3pt of bi] {two-model contrast};
+  \node[lab, above=3pt of rk] {single-pass scores};
+
+  \node[box, below=14pt of $(dg.south)!0.5!(rk.south)$, minimum width=0.86\textwidth, fill=black!3]
+    (reg) {Registered action family \(\calA=\{(b_k,j)\}\)\\
+      \scriptsize \(b_k\in\{128,256,512,1024\}\) tokens \(\times\) enabled detectors \(\;\cdot\;\) weight \(w_a\), conformal rank \(p_a\)};
+  \node[box, below=10pt of reg, fill=black!3, minimum width=0.86\textwidth]
+    (dec) {Construction A: union bound over executed actions
+      \quad\textbar\quad
+      Construction B: complete-path maximum \(M_\pi\)};
+
+  \draw[arr] (dg.south) -- (reg.north |- dg.south);
+  \draw[arr] (fd.south) -- (reg.north |- fd.south);
+  \draw[arr] (bi.south) -- (reg.north |- bi.south);
+  \draw[arr] (rk.south) -- (reg.north |- rk.south);
+  \draw[arr] (reg.south) -- (dec.north);
+  \node[lab, right=2pt of dec.east, anchor=west] {};
+\end{tikzpicture}
+\caption{\textbf{Fig.}~\textbf{3} Score families and how they enter the registered action family. DetectGPT's marginal curvature needs roughly a hundred perturb--rescore cycles and is held as an expensive comparator; Fast-DetectGPT estimates conditional curvature in one sampling batch; Binoculars contrasts observer and performer perplexities; likelihood and rank scores are single-pass. Each enabled score multiplies the four prefix budgets to form the registered actions that Construction A weights and Construction B freezes into a route}
+\label{fig:detectors}
+\end{figure}
 
 AdaDetectGPT learns a witness function from training data \citep{zhou2025adadetect}. Its adaptation concerns score learning; our policy selects inspections within a test document after development. We will distinguish these tasks when choosing baselines. A learned score could enter the registered family, but its fixed-decision guarantee would not replace pathwise error accounting.
+
+\subsection{Calibration baselines and sequential evidence}
 
 Zhu et al.\ calibrate detection scores within text-length bins in MCP \citep{zhu2025}. We will use MCP as a fixed-decision calibration baseline. We read its stated rule as assigning a threshold from the length of the submitted text. Selecting the minimum of several prefix-specific \(p\)-values requires an additional bound, which we supply for our proposed inspection rules. We follow the distinction between marginal and calibration-conditional validity in conformal outlier testing \citep{bates2023}.
 
@@ -107,15 +279,16 @@ Wald developed sequential hypothesis tests \citep{wald1945}; Howard et al.\ give
 
 Koning and van Meer induce sequential tests from terminal tests \citep{koning2026anytime}. Construction A applies weighted Bonferroni testing to conformal ranks; Construction B uses an observable lower bound on terminal rejection. We study these implementations for within-document screening and do not claim a new multiple-testing inequality or sequential-test induction principle.
 
-Kirchenbauer et al.\ embed watermarks during generation \citep{kirchenbauer2023}. Xie et al.\ combine watermark evidence with conformal methods to assess permissible versus impermissible AI assistance in educational settings \citep{xie2026}. We restrict this study to passive detection of unwatermarked text and make no claim to originate conformal AI-use decisions.
+Kirchenbauer et al.\ embed watermarks during generation \citep{kirchenbauer2023}. Xie et al.\ combine watermark evidence with conformal methods to assess permissible versus impermissible AI assistance in educational settings \citep{xie2026}. We restrict this study to passive detection of unwatermarked text and make no claim to originate conformal AI-use decisions. Table~\ref{tab:position} positions these strands against the present proposal.
 
 \begin{table}[t]
-\caption{Prior work and the scope of the proposed study.}\label{tab:position}
+\caption{\textbf{Table}~\textbf{2} Prior work and the scope of the proposed study}\label{tab:position}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}YY@{}}
 \toprule
 Research strand & Established relevance & Proposed distinction \\
 \midrule
+Zero-shot scores \citep{mitchell2023,bao2024,hans2024} & Curvature and contrastive perplexity separate machine from human text at fixed thresholds. & Wrap any enabled score in a pathwise false-alert guarantee under one \(\alpha\). \\
 Sample complexity \citep{chakraborty2024} & Detectability depends on evidence and distributional separation. & Translate this motivation into measured power--cost curves without equating tokens with independent samples. \\
 Length-aware MCP \citep{zhu2025} & Human-reference calibration adapts thresholds to text length. & Protect a decision across multiple inspected prefixes and switched detectors. \\
 Online betting \citep{chen2025} & Error and delay guarantees for sequential source detection. & Study one document with within-text dependence and heterogeneous scoring costs. \\
@@ -267,7 +440,7 @@ obeys the time-uniform bound \(\Prob_0(\sup_t E_t\geq1/\alpha)\leq\alpha\) \cite
 
 \subsection{Operational protocol}
 
-We will start with \(b_k\in\{128,256,512,1024\}\) tokens under a preregistered inspection tokenizer, truncating at the end of the document. We will log detector-specific tokenizations and rescoring costs. The prototype registers four detectors---a likelihood-derived score, a rank score, a log-rank score, and a stylometric score---each at the four token budgets (sixteen registered actions). Fast-DetectGPT and Binoculars are optional registered extensions toggled at development time \citep{mitchell2023,bao2024,hans2024}. DetectGPT remains an expensive comparator on a resource-matched subset. We will choose the initial low-cost action from development measurements.
+We will start with \(b_k\in\{128,256,512,1024\}\) tokens under a preregistered inspection tokenizer, truncating at the end of the document. We will log detector-specific tokenizations and rescoring costs. The prototype registers four detectors---a likelihood-derived score, a rank score, a log-rank score, and a stylometric score---each at the four token budgets (sixteen registered actions). Fast-DetectGPT and Binoculars are optional registered extensions toggled at development time \citep{mitchell2023,bao2024,hans2024}; their call profiles are summarized in Table~\ref{tab:detectors} and Fig.~\ref{fig:detectors}. DetectGPT remains an expensive comparator on a resource-matched subset because its \(\sim100\) perturbation--rescore cycles dominate prefix latency. We will choose the initial low-cost action from development measurements.
 
 \begin{enumerate}
 \item Create splits before producing prefixes, grouping source-document lineages, known authors, and prompt families. Use only development data to fit score orientation, routing, and error weights.
@@ -297,12 +470,12 @@ We will reserve disjoint development, human calibration, and evaluation partitio
 
 \subsection{Comparators and ablations}
 
-We will calibrate operational comparators on the same human-reference population at the stated nominal error target. We will compare (i) a fixed short inspection; (ii) a fixed maximum-budget inspection; (iii) fixed-length MCP under the published method; (iv) a fixed escalation route with valid multiplicity correction; (v) Construction A with learned routing; and (vi) Construction B with frozen adaptive routing. We will include published default thresholds as descriptive reference points and label a repeated-\(\alpha\) conformal scan as an invalid negative control.
+We will calibrate operational comparators on the same human-reference population at the stated nominal error target. Table~\ref{tab:design} lists the planned conditions and endpoints. We will compare (i) a fixed short inspection; (ii) a fixed maximum-budget inspection; (iii) fixed-length MCP under the published method; (iv) a fixed escalation route with valid multiplicity correction; (v) Construction A with learned routing; and (vi) Construction B with frozen adaptive routing. We will include published default thresholds as descriptive reference points and label a repeated-\(\alpha\) conformal scan as an invalid negative control.
 
 We will vary the numbers of looks and detectors, calibration counts, and equal versus development-chosen error weights. We will compare prefix inspection with preregistered block inspection and fixed routes with adaptive routes, accounting for added block search through multiplicity correction or complete-path calibration. We will report the independent-document source-stream comparison with Chen and Wang apart from the single-document results \citep{chen2025}.
 
 \begin{table}[t]
-\caption{Planned evaluation conditions and endpoints.}\label{tab:design}
+\caption{\textbf{Table}~\textbf{3} Planned evaluation conditions and endpoints}\label{tab:design}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}YY@{}}
 \toprule
@@ -354,8 +527,10 @@ Reviewers may use the proposed system to prioritize documents for inspection. We
 
 \section{Work plan and expected outcomes}\label{sec:workplan}
 
+The indicative schedule in Table~\ref{tab:timeline} spans six months conditional on data and compute access.
+
 \begin{table}[t]
-\caption{Indicative six-month research plan, conditional on data and compute access.}\label{tab:timeline}
+\caption{\textbf{Table}~\textbf{4} Indicative six-month research plan, conditional on data and compute access}\label{tab:timeline}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.12\textwidth}YY@{}}
 \toprule
@@ -383,18 +558,143 @@ We propose to test adaptive within-document inspection against fixed policies at
   \backmatter
 \fi
 
-\section*{Declarations}
-\textbf{Manuscript status.} We checked the literature on 7 September 2026 against primary papers and publisher or proceedings records. The accompanying Burnwatch prototype implements Constructions A and B and the fixed \texttt{ll@1024} comparator, including resolution-aware error allocations for A; a historical study report exists under \texttt{study\_report.md}. The designed multi-corpus study has not been completed. We present the propositions as consequences of the stated assumptions and make no claim of new foundational results.
+\section*{Statements and Declarations}
 
-\textbf{Funding and competing interests.} The authors must supply and confirm these declarations before submission.
+\subsection*{Manuscript status}
+We checked the literature on 7 September 2026 against primary papers and publisher or proceedings records. The accompanying Burnwatch prototype implements Constructions A and B and the fixed \texttt{ll@1024} comparator, including resolution-aware error allocations for A; a historical study report exists under \texttt{study\_report.md}. The designed multi-corpus study has not been completed. We present the propositions as consequences of the stated assumptions and make no claim of new foundational results.
 
-\textbf{Data and code availability.} The Burnwatch implementation accompanies this manuscript in the repository. We will release eligible materials within source-data licenses and privacy constraints.
+\subsection*{Funding}
+No funding was received to assist with the preparation of this manuscript. Authors must confirm or amend this statement before submission.
 
-\textbf{Ethics and author contributions.} The authors must record their contributions and obtain any required approvals before submission. We used AI assistance for literature synthesis and drafting. Before submission, the authors must review the claims and references and satisfy the journal's disclosure requirements.
+\subsection*{Competing interests}
+The authors declare no competing interests that are relevant to the content of this article. Authors must confirm this statement before submission.
+
+\subsection*{Data availability}
+The Burnwatch implementation accompanies this manuscript in the repository. Public benchmark subsets (RAID, DetectRL, RealDet, and Binoculars corpora) remain under their original licenses. We will release eligible materials within source-data licenses and privacy constraints. No proprietary datasets were generated for this proposal paper.
+
+\subsection*{Code availability}
+Source code for the prototype is available in the accompanying repository. A versioned release will be linked at submission.
+
+\subsection*{Author contributions}
+CRediT roles must be confirmed by all authors before submission. Tentative roles: C.\,M.\,Balagtas, conceptualization and original draft; M.\,J.\,Buluran, methodology and software; J.\,R.\,Durmiendo, validation and investigation; R.\,E.\,Lopez, supervision and review editing. All authors reviewed and approved the final manuscript.
+
+\subsection*{Ethics approval}
+Not applicable. This proposal uses only publicly released text corpora and does not involve human subjects research requiring institutional ethics approval at the proposal stage. Any subsequent collection of new human data will be submitted for institutional review before collection.
+
+\subsection*{Consent to participate}
+Not applicable.
+
+\subsection*{Consent for publication}
+Not applicable.
+
+\subsection*{Materials availability}
+Not applicable beyond the code and public datasets named above.
+
+\subsection*{AI assistance disclosure}
+We used AI assistance for literature synthesis and drafting. Before submission, the authors must review every claim and reference and satisfy the journal's disclosure requirements. Large language models cannot be authors.
 
 \begin{appendices}
 \renewcommand{\theHequation}{appendix.\Alph{section}.\arabic{equation}}
-\input{appendix-proofs}
+\section{Supplementary proofs and technical analysis}\label{app:proofs}
+
+\subsection{Conformal rank is super-uniform under ties}
+
+\begin{lemma}[Conservative conformal rank]\label{lem:rank}
+Fix action \(a\), and let \(H_1,\ldots,H_m,X\) be exchangeable values of \(S_a\). Define
+\[
+ p_a(X)=\frac{1+\sum_{i=1}^{m}\ind\{S_a(H_i)\geq S_a(X)\}}{m+1}.
+\]
+Then for every real \(u\),
+\[
+ \Prob\{p_a(X)\leq u\}\leq u.
+\]
+In particular, with \(\alpha_a=\alpha w_a\) and nonnegative weights summing to at most one, \(\sum_a\Prob\{p_a\leq\alpha_a\}\leq\alpha\).
+\end{lemma}
+\begin{proof}
+Exchangeability implies the joint distribution of \((S_a(H_1),\ldots,S_a(H_m),S_a(X))\) is invariant under permutations. For any fixed real \(z\), the rank of \(z\) among the \(m+1\) exchangeable values,
+\[
+ R(z)=1+\sum_{i=0}^{m}\ind\{V_i>z\},\qquad
+ (V_0,\ldots,V_m)=(S_a(X),S_a(H_1),\ldots,S_a(H_m)),
+\]
+is a uniformly distributed element of \(\{1,\ldots,m+1\}\) whenever the \(V_i\) are almost surely distinct. With ties, the weak upper rank
+\[
+ \widetilde R(z)=1+\sum_{i=0}^{m}\ind\{V_i\geq z\}-\ind\{V_0\geq z\}
+\]
+dominates the position in the sorted array, so
+\[
+ \Prob\{\widetilde R(S_a(X))\leq k\}\leq \frac{k}{m+1}.
+\]
+Setting \(k=\lfloor u(m+1)\rfloor\) yields the claim. The weight statement is the union bound with \(\sum_a w_a\leq1\).
+\end{proof}
+
+Weak inequalities are required for ties: using strict inequalities can concentrate ranks at one under constant scores.
+
+\subsection{Full statement of Proposition~\ref{prop:spending}}\label{app:registered}
+
+Let \(\calD_{\rm dev}\) denote all development choices: score maps, detectors, budgets, execution order (if any), and weights. Weights may be instantiated by a development-frozen rule depending only on \((m,\alpha)\), the registered family \(\calA\), and a development-fixed priority order---never on the calibration ranks or the test document. Conditional on \(\calD_{\rm dev}\), Assumption~\ref{ass:exchange} gives document-level exchangeability of \(H_1,\ldots,H_m,X\sim P_0\).
+
+\begin{proposition}[Conditional on development]\label{prop:spending-full}
+Under Assumption~\ref{ass:exchange} and the development freezing above,
+\[
+ \Prob_{P_0}\{\text{alert at any executed action}\mid \calD_{\rm dev}\}
+ \leq \sum_{a\in\calA}\alpha w_a \leq \alpha.
+\]
+The bound holds for arbitrary data-dependent execution subsets and orders drawn from \(\calA\), and for arbitrary stopping rules measurable with respect to the ranks seen so far.
+\end{proposition}
+\begin{proof}
+By Lemma~\ref{lem:rank}, for each fixed \(a\), \(\Prob_0(p_a\leq\alpha w_a\mid\calD_{\rm dev})\leq\alpha w_a\). The policy alerts only if some executed \(a\) satisfies \(p_a\leq\alpha w_a\). Since the executed set is a subset of \(\calA\), the alert event is contained in \(\bigcup_{a\in\calA}\{p_a\leq\alpha w_a\}\). The union bound and \(\sum_a w_a\leq1\) finish the proof. Note that the individual events \(\{p_a\leq\alpha w_a\}\) may be arbitrarily dependent; no conditional super-uniformity along the path is used.
+\end{proof}
+
+Zero-weight actions cannot alert: their threshold is zero and ranks are at least \(1/(m+1)>0\). They may still execute, for logging or routing features fixed in development.
+
+\subsection{Complete-path consistency}\label{app:complete-path}
+
+Proposition~\ref{prop:path} requires that deployment follow a \emph{prefix} of the frozen policy path. Formally: for each \(t\leq T_\pi(X)\),
+\[
+ M_{\pi,t}(X)=\max_{s\leq t} g_{a_s(X)}(S_{a_s(X)}(X))
+ \leq \max_{s\leq T_\pi(X)} g_{a_s(X)}(S_{a_s(X)}(X))=M_\pi(X),
+\]
+so \(p^{\rm path}_t(X)\geq p^{\rm path}_{T_\pi(X)}(X)\) with the complete calibration reference. Early termination therefore cannot produce a smaller \(p\)-value than the terminal one.
+
+\paragraph*{Empty and failed routes.}
+If the route is empty, \(M_\pi=-\infty\) and no alert is issued. If every action fails, the partial and complete maxima are both \(-\infty\); the rank is then
+\[
+ p^{\rm path}=\frac{1+\sum_i\ind\{M_\pi(H_i)\geq -\infty\}}{m+1}=1,
+\]
+provided every calibration complete-path maximum is a real number (at least one successful action on each calibration path). If some calibration paths are also all-failure, the count \(\ind\{-\infty\geq-\infty\}=1\) still yields \(p=1\) when the test path is all-failure. Alerts therefore never fire on empty or fully failed routes.
+
+\paragraph*{Induced sequential tests.}
+Koning and van Meer show how to induce anytime-valid sequential tests from terminal tests under suitable embedding \citep{koning2026anytime}. Construction B is the special case where the terminal test is a conformal rank of the complete-path maximum \(M_\pi\) and the sequential monitor compares partial maxima against the same terminal reference. The containment \(M_{\pi,t}\leq M_\pi\) is exactly the monotonicity condition that makes the induced sequential \(p\)-value no smaller than the terminal one. We do not claim novelty of the induction; we specify how the terminal statistic, the calibration sample, and the policy freezing interact in this application.
+
+\subsection{Calibration resolution for equal weights}\label{app:resolution}
+
+With \(n\) equal-weight active actions, \(w=1/n\) and \(\alpha_a=\alpha/n\). Feasibility \eqref{eq:resolution} requires
+\[
+ m\geq \left\lceil\frac{n}{\alpha}\right\rceil-1.
+\]
+For the prototype family of sixteen actions at equal weight:
+\begin{itemize}
+\item \(\alpha=0.05\): \(m\geq 319\);
+\item \(\alpha=0.01\): \(m\geq 1{,}599\);
+\item \(\alpha=0.001\): \(m\geq 15{,}999\).
+\end{itemize}
+A development-frozen rule may concentrate the budget on \(k=\lfloor\alpha(m+1)\rfloor\) active actions with weight \(1/k\) each and zero elsewhere; then the active weights satisfy \(k\cdot(1/k)\leq1\) and each active action meets \eqref{eq:resolution} at the current \(m\). Remaining registered actions receive \(w=0\) and cannot alert.
+
+\subsection{Marginal validity under a shifted test law}\label{app:shift}
+
+Let \(\calH\sim P_{\rm cal}^{m}\) be the calibration mechanism and \(X\sim P_0\) the null test law under the design. The marginal guarantee is
+\[
+ \Prob_{\calH,X}\{\text{alert}\}\leq\alpha.
+\]
+If the test law shifts to \(\widetilde P_0\) while the calibration mechanism is unchanged, total variation over \(X\) alone gives
+\[
+ \Prob_{\calH,\widetilde X}\{\text{alert}\}
+ \leq \Prob_{\calH,X}\{\text{alert}\}+\TV(P_0,\widetilde P_0)
+ \leq \alpha+\TV(P_0,\widetilde P_0).
+\]
+A fixed calibration sample \(\calH=h\) can have conditional FPR
+\(\Prob_X\{\text{alert}\mid \calH=h\}\) well above \(\alpha\) on a set of \(h\)'s of small but positive \(P_{\rm cal}\)-measure; marginal control averages over that measure. Deployment-time conditional claims therefore require calibration-conditional methods \citep{bates2023} or larger calibration sizes.
+
 \end{appendices}
 
 \begin{thebibliography}{99}
@@ -410,6 +710,7 @@ Bao, G., Zhao, Y., Teng, Z., Yang, L., Zhang, Y.:
 Fast-DetectGPT: Efficient zero-shot detection of machine-generated text via conditional probability curvature.
 In: The Twelfth International Conference on Learning Representations (2024).
 \url{https://openreview.net/forum?id=Bpcgcr8E8Z}
+(Presented at ICLR 2024; arXiv:2310.05130.)
 
 \bibitem[Hans et~al.(2024)]{hans2024}
 Hans, A., Schwarzschild, A., Cherepanova, V., Kazemi, H., Saha, A., Goldblum, M., Geiping, J., Goldstein, T.:

@@ -16,8 +16,8 @@ This report is a **historical artifact** from before two implementation fixes:
    rates implied for A in this file may over-count non-alert runs as "early"
    relative to the current code. Regenerate before using those SOP measures.
 
-The reverse-aligned proposal manuscript lives in `paper/main.tex` (with
-`paper/appendix-proofs.tex`). The designed multi-corpus evaluation study from
+The reverse-aligned proposal manuscript lives in `paper/main.tex` (single file;
+the supplementary proofs appendix is inlined). The designed multi-corpus evaluation study from
 the six-month plan is not complete; treat alert, power, token-cost, and futility
 values below as historical measurements only.
 

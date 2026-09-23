@@ -2,7 +2,7 @@
 
 Project Burnwatch is a Flask web platform for adaptive, conformal screening of
 AI-generated text. It implements the constructions and protocol described in
-the in-repo manuscript (`paper/main.tex` + `paper/appendix-proofs.tex`):
+the in-repo manuscript (`paper/main.tex`, single file with inlined appendix):
 
 - Construction A: a registered detector/action family with a union-bound error budget.
   Default allocations are resolution-aware: the error budget is concentrated on
