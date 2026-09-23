@@ -1804,7 +1804,9 @@ function closestStep(steps){
 }
 function interpretScreen(res, isA){
   const steps = res.steps || [];
-  const total = isA ? (res.n_actions || steps.length) : (res.route_length || steps.length);
+  const total = isA
+    ? (res.n_active ?? res.n_actions ?? steps.length)
+    : (res.route_length || steps.length);
   if(res.alert){
     const hit = steps.find(s => s.alert);
     if(isA && hit) return `Alert: ${hit.detector}@${hit.budget}, p ${fmt(hit.p)} vs bound ${hit.threshold.toFixed(4)}. Stopped after ${steps.length} of ${total} actions.`;

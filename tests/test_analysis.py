@@ -279,6 +279,39 @@ class BenchmarkMeansTests(unittest.TestCase):
         self.assertEqual(by_key[("A", 0.5)]["early_decision_ai_rate"], 1.0)
         self.assertEqual(by_key[("B", 0.5)]["early_decision_human_rate"], 1.0)
 
+    def test_early_decision_uses_active_set_for_A(self):
+        # m=260, alpha=0.05 -> n_active=13 (not 16). A non-alerting human
+        # runs all 13 active actions and must NOT count as early; an AI that
+        # alerts at step 1 must count as early.
+        bundle = _synthetic_bundle(m=260)
+        bundle.corpus = "test-corpus"
+        plan = conformal.a_weight_plan(260, 0.05, bundle.n_actions)
+        self.assertEqual(plan["n_active"], 13)
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _ = conformal.evaluate_cells(
+            bundle, humans, ais, ("A",), (0.05,), score_fn=_stub_actions)
+        a = rows[0]
+        self.assertEqual(a["a_n_active"], 13)
+        self.assertEqual(a["early_decision_human_rate"], 0.0)
+        self.assertEqual(a["early_decision_ai_rate"], 1.0)
+        # means use the active set: (13 + 1) / 2 = 7
+        self.assertAlmostEqual(a["mean_actions"], 7.0)
+
+    def test_early_decision_not_set_when_structurally_inactive(self):
+        # m=9, alpha=0.001 -> k=0: A never runs; 0 < 0 is false, not early.
+        bundle = _synthetic_bundle(m=9)
+        bundle.corpus = "test-corpus"
+        humans = [_words("LOW", *["word"] * 200)]
+        ais = [_words("HIGH", *["word"] * 200)]
+        rows, _, _ = conformal.evaluate_cells(
+            bundle, humans, ais, ("A",), (0.001,), score_fn=_stub_actions)
+        a = rows[0]
+        self.assertEqual(a["a_n_active"], 0)
+        self.assertEqual(a["early_decision_human_rate"], 0.0)
+        self.assertEqual(a["early_decision_ai_rate"], 0.0)
+        self.assertAlmostEqual(a["mean_actions"], 0.0)
+
 
 class ApiValidationTests(unittest.TestCase):
     def test_random_upload_sampling_is_seed_reproducible(self):

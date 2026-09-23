@@ -853,6 +853,9 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
     paired_ai = {c: {a: [] for a in alphas} for c in constructions}
     docs_all = humans[:n] + ais[:n]
     pres = [score_fn(doc) for doc in docs_all]
+    # Plan before screening: A's route length for early-decision is the
+    # resolution-aware active set for this (m, alpha), not the registered size.
+    plans = {a: a_weight_plan(bundle.m, a, bundle.n_actions) for a in alphas}
     detail_out = [] if detail else None
     for i in range(n):
         rec = None
@@ -871,8 +874,14 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
                     cost[c][a][0] += res["tokens_inspected"]
                     cost[c][a][1] += res["tokens_saved_pct"]
                     acts[c][a] += res["actions_executed"]
-                    full_steps = (len(DEFAULT_ROUTE) if c == "B"
-                                  else 1 if c == "fixed" else bundle.n_actions)
+                    if c == "B":
+                        full_steps = len(DEFAULT_ROUTE)
+                    elif c == "fixed":
+                        full_steps = 1
+                    else:
+                        # A: early = stopped before finishing the active set.
+                        # k=0 => 0 < 0 is false (structural, not early).
+                        full_steps = plans[a]["n_active"]
                     if res["actions_executed"] < full_steps:
                         early[c][a][0 if label == "human" else 1] += 1
                     if label == "ai":
@@ -890,7 +899,6 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
             detail_out.append(rec)
         if progress:
             progress(i + 1, n)
-    plans = {a: a_weight_plan(bundle.m, a, bundle.n_actions) for a in alphas}
 
     def _m_required(c, a):
         if c == "B":
