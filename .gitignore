@@ -17,3 +17,6 @@ paper/*.log
 paper/*.out
 paper/*.toc
 paper/*.pdf
+
+# Paper UI screenshots (tracked despite global *.png)
+!paper/figures/*.png

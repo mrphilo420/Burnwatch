@@ -110,46 +110,40 @@ Fig.~\ref{fig:workflow} shows the end-to-end workflow from split construction th
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
+  node distance=9pt,
   font=\footnotesize,
-  stage/.style={draw, rounded corners=3pt, align=center, inner sep=5pt, fill=black!3},
-  band/.style={draw, rounded corners=4pt, align=left, inner sep=5pt, fill=black!2},
-  step/.style={draw, rounded corners=2pt, align=center, inner sep=3.5pt, fill=white},
+  band/.style={draw, rounded corners=3pt, align=center, inner sep=5pt,
+    fill=black!2, text width=0.88\textwidth},
   arr/.style={-{Stealth[length=4.5pt]}, thick},
-  note/.style={font=\scriptsize\itshape, text=black!55, align=left}
+  note/.style={font=\scriptsize\itshape, text=black!60, align=center,
+    text width=0.88\textwidth}
 ]
-  \node[band, text width=0.94\textwidth] (dev) {
-    \textbf{1 · Development (frozen)}\quad
-    corpus splits (lineage-grouped)
-    \;$\to$\;
-    score orientation, routing $\pi$, weights $w_a$
-    \;$\to$\;
-    futility rule and cost model\\[1pt]
-    {\scriptsize\itshape No calibration ranks or test document used here.}
+  \node[band] (dev) {
+    \textbf{1. Development (frozen)}\\[-1pt]
+    lineage-grouped splits $\rightarrow$ score orientation, routing $\pi$,
+    weights $w_a$, futility rule, and cost model\\[-1pt]
+    {\scriptsize\itshape Uses neither calibration ranks nor the test document.}
   };
-  \node[band, text width=0.94\textwidth, below=12pt of dev] (cal) {
-    \textbf{2 · Human calibration (offline)}\quad
-    $H_1,\ldots,H_m$
-    \;$\to$\;
-    A: score all registered actions
-    \;\textbar\;
-    B: replay full route $\to M_\pi(H_i)$\\[1pt]
-    {\scriptsize\itshape Store ranks / path maxima; resolution floor $m\geq\lceil1/(\alpha w_a)\rceil-1$.}
+  \node[band, below=of dev] (cal) {
+    \textbf{2. Human calibration (offline)}\\[-1pt]
+    $H_1,\ldots,H_m$: A scores every registered action;
+    B replays the complete route to obtain $M_\pi(H_i)$\\[-1pt]
+    {\scriptsize\itshape Store ranks or path maxima; action-level resolution requires
+    $m\geq\lceil1/(\alpha w_a)\rceil-1$.}
   };
-  \node[band, text width=0.94\textwidth, below=12pt of cal] (scr) {
-    \textbf{3 · Online screening (test document $X$)}\\[3pt]
-    \texttt{low-cost \(a_1\)}\;$\to$\;
-    route / extend \(b_k\)\;$\to$\;
-    switch detector\;$\to$\;
-    futility or cap\;$\to$\;
-    no alert\\[3pt]
-    {\scriptsize\itshape Alert if $p_a\leq\alpha w_a$ or $p_t^{\rm path}\leq\alpha$; otherwise stop on futility, end of evidence, or resource cap.}
+  \node[band, below=of cal] (scr) {
+    \textbf{3. Online screening (test document $X$)}\\[-1pt]
+    low-cost action $\rightarrow$ extend prefix or switch detector
+    $\rightarrow$ alert, futility stop, or resource cap\\[-1pt]
+    {\scriptsize\itshape Alert only if $p_a\leq\alpha w_a$ or
+    $p_t^{\rm path}\leq\alpha$; otherwise report no alert at this budget.}
   };
   \draw[arr] (dev.south) -- (cal.north);
   \draw[arr] (cal.south) -- (scr.north);
-  \node[note, text width=0.94\textwidth, below=6pt of scr]
-    {Exchangeability is at the document level; tokens inside a document may be arbitrarily dependent. Outputs: \emph{flag for review} or \emph{no alert at this budget} (insufficient evidence).};
+  \node[note, below=5pt of scr]
+    {Exchangeability is document-level; tokens within a document may be dependent.};
 \end{tikzpicture}
-\caption{End-to-end screening workflow. Development freezes routing, weights, and the futility rule without touching calibration ranks. Offline calibration scores every registered action (Construction A) and replays the complete frozen route to obtain path maxima (Construction B). Online screening executes a prefix--detector action, checks the appropriate rank against its boundary, and either alerts or continues under the routing and futility rules}
+\caption{End-to-end screening workflow. Development freezes the policy and error allocation. Offline calibration computes action ranks for Construction A and complete-path maxima for Construction B. Online screening follows the frozen rules and returns either \emph{flag for review} or \emph{no alert at this budget}.}
 \label{fig:workflow}
 \end{figure}
 
@@ -159,37 +153,38 @@ Fig.~\ref{fig:workflow} shows the end-to-end workflow from split construction th
   font=\footnotesize,
   box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt},
   arr/.style={-{Stealth[length=4pt]}, thick},
-  good/.style={box, fill=black!3},
+  method/.style={box, fill=black!3, text width=0.39\textwidth,
+    minimum height=30mm},
   lab/.style={font=\scriptsize\itshape, text=black!55}
 ]
-  \node[box, fill=black!8] (p1) {\(b_1{=}128\)};
-  \node[box, fill=black!8, right=10pt of p1] (p2) {\(b_2{=}256\)};
-  \node[box, fill=black!8, right=10pt of p2] (p3) {\(b_3{=}512\)};
-  \node[box, fill=black!8, right=10pt of p3] (p4) {\(b_4{=}1024\)};
+  \node[lab] (route) {Shared inspection route; the detector may switch at each step};
+  \node[box, fill=black!8, below=4pt of route] (p1) {\(b_1=128\)};
+  \node[box, fill=black!8, right=8pt of p1] (p2) {\(b_2=256\)};
+  \node[box, fill=black!8, right=8pt of p2] (p3) {\(b_3=512\)};
+  \node[box, fill=black!8, right=8pt of p3] (p4) {\(b_4=1024\)};
   \draw[arr] (p1) -- (p2);
   \draw[arr] (p2) -- (p3);
   \draw[arr] (p3) -- (p4);
-  \node[lab, above=4pt of p1.west, anchor=west] {shared inspection path (detector may switch at each step)};
-
-  \node[good, below=16pt of $(p1.south)!0.5!(p2.south)$, text width=0.42\textwidth] (ca) {
-    \textbf{Construction A · error budget}\\
-    Each executed action has \(\alpha_a=\alpha w_a\).\\
-    Alert if any \(p_a\leq\alpha_a\).\\
-    {\scriptsize Union bound \(\Rightarrow\) \(\Prob(\text{any alert})\leq\sum\alpha_a\leq\alpha\).\\
-    Active subset sized by \(\lfloor\alpha(m+1)\rfloor\).}
+  \coordinate (mid) at ($(p2)!0.5!(p3)$);
+  \node[method, anchor=north east] (ca)
+    at ([xshift=-6pt,yshift=-17pt]mid.south) {
+    \textbf{Construction A: error budget}\\[2pt]
+    Fix $\alpha_a=\alpha w_a$ for each action.\\
+    Alert if an executed action has $p_a\leq\alpha_a$.\\[2pt]
+    {\scriptsize Weighted Bonferroni gives
+    $\Prob(\text{any alert})\leq\sum_a\alpha_a\leq\alpha$.}
   };
-  \node[good, below=16pt of $(p3.south)!0.5!(p4.south)$, text width=0.42\textwidth] (cb) {
-    \textbf{Construction B · path maximum}\\
-    Calibrate \(M_\pi=\max_t g_a(S_a)\) on complete routes.\\
-    Alert at first \(t\) with \(p_t^{\rm path}\leq\alpha\).\\
-    {\scriptsize Partial max \(\leq\) complete max \(\Rightarrow\) early stop inherits terminal rank.}
+  \node[method, anchor=north west] (cb)
+    at ([xshift=6pt,yshift=-17pt]mid.south) {
+    \textbf{Construction B: path maximum}\\[2pt]
+    Calibrate $M_\pi=\max_t g_{a_t}(S_{a_t})$ on complete routes.\\
+    Alert at the first $t$ with $p_t^{\rm path}\leq\alpha$.\\[2pt]
+    {\scriptsize A partial maximum cannot exceed the complete maximum, so the terminal rank protects early stopping.}
   };
-
   \draw[arr, dashed] (p2.south) -- (ca.north);
   \draw[arr, dashed] (p3.south) -- (cb.north);
-  \node[lab, right=4pt of p4.east, anchor=west] {cap};
 \end{tikzpicture}
-\caption{The two validity constructions on the same prefix route. Construction A splits a single \(\alpha\) across registered actions and relies on a union bound over whatever subset is executed. Construction B freezes one route, calibrates the complete-path maximum once, and lets partial-path ranks inherit the terminal guarantee, so early stopping does not spend error across looks}
+\caption{Two validity constructions on one prefix route. Construction A allocates the error budget across registered actions. Construction B calibrates one complete-path maximum, so early stopping does not spend error across looks.}
 \label{fig:constructions}
 \end{figure}
 
@@ -247,38 +242,39 @@ Stop-slop (stylometric) & Lexicon hit-rate over the inspected prefix & 0 (string
 \centering
 \begin{tikzpicture}[
   font=\footnotesize,
-  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, minimum height=1.1em},
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt},
   det/.style={box, fill=black!4},
-  opt/.style={box, densely dashed},
-  lab/.style={font=\scriptsize\itshape, text=black!60},
   arr/.style={-{Stealth[length=4pt]}, thick}
 ]
-  \node[det] (dg) {DetectGPT\\ \scriptsize perturb \(\cdot\) score};
-  \node[det, right=8pt of dg] (fd) {Fast-DetectGPT\\ \scriptsize sample \(\cdot\) cond.\ score};
-  \node[det, right=8pt of fd] (bi) {Binoculars\\ \scriptsize PPL / X-PPL};
-  \node[det, right=8pt of bi] (rk) {LL / rank / log-rank\\ \scriptsize single LM};
+  \node[det, text width=0.16\textwidth, minimum height=13mm] (dg)
+    {\textbf{DetectGPT}\\[-1pt]\scriptsize perturb + rescore};
+  \node[det, text width=0.19\textwidth, minimum height=13mm, right=5pt of dg] (fd)
+    {\textbf{Fast-DetectGPT}\\[-1pt]\scriptsize conditional curvature};
+  \node[det, text width=0.16\textwidth, minimum height=13mm, right=5pt of fd] (bi)
+    {\textbf{Binoculars}\\[-1pt]\scriptsize two-model contrast};
+  \node[det, text width=0.18\textwidth, minimum height=13mm, right=5pt of bi] (rk)
+    {\textbf{Likelihood + rank}\\[-1pt]\scriptsize single-model scores};
 
-  \node[lab, above=3pt of dg] {expensive curvature};
-  \node[lab, above=3pt of fd] {fast curvature};
-  \node[lab, above=3pt of bi] {two-model contrast};
-  \node[lab, above=3pt of rk] {single-pass scores};
-
-  \node[box, below=14pt of $(dg.south)!0.5!(rk.south)$, minimum width=0.86\textwidth, fill=black!3]
+  \node[box, below=15pt of $(dg.south)!0.5!(rk.south)$,
+    text width=0.86\textwidth, fill=black!3]
     (reg) {Registered action family \(\calA=\{(b_k,j)\}\)\\
-      \scriptsize \(b_k\in\{128,256,512,1024\}\) tokens \(\times\) enabled detectors \(\;\cdot\;\) weight \(w_a\), conformal rank \(p_a\)};
-  \node[box, below=10pt of reg, fill=black!3, minimum width=0.86\textwidth]
-    (dec) {Construction A: union bound over executed actions
-      \quad\textbar\quad
-      Construction B: complete-path maximum \(M_\pi\)};
+      \scriptsize four token budgets \(\times\) enabled detectors;
+      each action has weight \(w_a\) and conformal rank \(p_a\)};
+  \node[box, fill=black!3, text width=0.39\textwidth,
+    anchor=north east] (deca) at ([xshift=-5pt,yshift=-9pt]reg.south)
+    {\textbf{Construction A}\\[-1pt]\scriptsize weighted action ranks};
+  \node[box, fill=black!3, text width=0.39\textwidth,
+    anchor=north west] (decb) at ([xshift=5pt,yshift=-9pt]reg.south)
+    {\textbf{Construction B}\\[-1pt]\scriptsize complete-path maximum \(M_\pi\)};
 
-  \draw[arr] (dg.south) -- (reg.north |- dg.south);
-  \draw[arr] (fd.south) -- (reg.north |- fd.south);
-  \draw[arr] (bi.south) -- (reg.north |- bi.south);
-  \draw[arr] (rk.south) -- (reg.north |- rk.south);
-  \draw[arr] (reg.south) -- (dec.north);
-  \node[lab, right=2pt of dec.east, anchor=west] {};
+  \draw[arr] (dg.south) -- (dg.south |- reg.north);
+  \draw[arr] (fd.south) -- (fd.south |- reg.north);
+  \draw[arr] (bi.south) -- (bi.south |- reg.north);
+  \draw[arr] (rk.south) -- (rk.south |- reg.north);
+  \draw[arr] (reg.south) -- (deca.north);
+  \draw[arr] (reg.south) -- (decb.north);
 \end{tikzpicture}
-\caption{Score families and how they enter the registered action family. DetectGPT's marginal curvature needs roughly a hundred perturb--rescore cycles and is held as an expensive comparator; Fast-DetectGPT estimates conditional curvature in one sampling batch; Binoculars contrasts observer and performer perplexities; likelihood and rank scores are single-pass. Each enabled score multiplies the four prefix budgets to form the registered actions that Construction A weights and Construction B freezes into a route}
+\caption{Score families and their role in the registered action family. Each enabled detector is paired with the prefix budgets. Construction A assigns weights to the resulting action ranks; Construction B freezes selected actions into a route.}
 \label{fig:detectors}
 \end{figure}
 
@@ -779,6 +775,115 @@ If the test law shifts to \(\widetilde P_0\) while the calibration mechanism is 
 \]
 A fixed calibration sample \(\calH=h\) can have conditional FPR
 \(\Prob_X\{\text{alert}\mid \calH=h\}\) well above \(\alpha\) on a set of \(h\)'s of small but positive \(P_{\rm cal}\)-measure; marginal control averages over that measure. Deployment-time conditional claims therefore require calibration-conditional methods \citep{bates2023} or larger calibration sizes.
+
+\section{Prototype walkthrough with screenshots}\label{app:ui}
+
+This appendix walks through the Burnwatch web prototype that implements Constructions~A and~B, the fixed \texttt{ll@1024} comparator interface, and the calibration-resolution table used in the main text. Screenshots were captured from a local instance at \texttt{http://127.0.0.1:5010} under the default RealDet calibration bundle (\(m=260\), development size \(50\), GPT-2 scorer). The UI is a single page with three tabs---Screen, How it Works, and FAQ---served by a Flask process; all scoring runs server-side.
+
+\subsection{Launching the prototype}
+
+From the repository root, with the project virtual environment active:
+\begin{verbatim}
+python app.py --corpus realdet --m 260 --n-dev 50
+\end{verbatim}
+The process binds \texttt{127.0.0.1:5010}, loads or builds a human-calibration cache under \texttt{calibration\_cache/}, and exposes a read-only status document at \texttt{/api/status}. The navigation bar shows the calibration fingerprint and readiness (Fig.~\ref{fig:ui-landing}); a first-visit privacy banner offers local preference storage and can be dismissed without saving. An optional Help mode adds inline definition hotspots next to each control.
+
+\subsection{Screen tab: input and controls}
+
+The Screen tab is the default landing view (Fig.~\ref{fig:ui-landing}). Users paste between 20 and 2{,}000 words or upload PDF/DOCX/TXT/MD. Uploads default to the calibrated first-prefix view; a seeded random window is available for exploration but is not covered by the prefix-calibration bundle and must not be read as calibrated error-rate evidence.
+
+Below the input, the control panel (Fig.~\ref{fig:ui-controls}) offers:
+\begin{itemize}
+\item scoring-model chips (GPT-2 family and optional larger scorers already cached on the host);
+\item detector-family toggles for the likelihood/rank/log-rank family, an optional Binoculars-style contrastive score, and optional Fast-DetectGPT curvature;
+\item nominal level \(\alpha\in\{0.001,0.01,0.05,0.1\}\) with a live resolution hint that reports whether the current \(m\) can reject at that level under the active-set rule of Section~\ref{sec:methods}.
+\end{itemize}
+The primary action runs both constructions on the submitted text.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_screen_landing.png}
+\caption{Screen tab landing view. The header reports calibration readiness for the loaded bundle; the hero offers paste or file input, and the control panel below selects the scoring model, detector family, and nominal level \(\alpha\)}
+\label{fig:ui-landing}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_screen_controls.png}
+\caption{Screening controls. Model chips, detector-family toggles, and \(\alpha\) selectors sit above the primary Screen action; the resolution hint states whether Construction~A can allocate positive weight to enough registered actions at the chosen \(\alpha\)}
+\label{fig:ui-controls}
+\end{figure}
+
+\subsection{Reading a screening result}
+
+After a run completes, the results tile (Fig.~\ref{fig:ui-results}) shows a decision-aid card summarizing both constructions side by side. Each construction panel reports an alert/no-alert badge, estimated token savings relative to the fixed full-budget route, and a step table: Construction~A lists executed actions with per-action conformal \(p\)-values against their allocated bounds; Construction~B lists partial path maxima against the complete-path reference. Optional style-marker highlights and a stop-slop lexicon report support qualitative review but are not part of the error-control claim.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_screen_results.png}
+\caption{Screening results for a sample passage at \(\alpha=0.05\). The decision-aid card sits above the Construction~A and Construction~B panels; each panel shows the verdict, savings estimate, and the step or partial-max table used to reach it}
+\label{fig:ui-results}
+\end{figure}
+
+\subsection{Empirical benchmark panel}
+
+The benchmark section on the Screen tab runs a matched human/AI comparison on a selected public corpus for a small number of documents per class (Fig.~\ref{fig:ui-bench}). The output table reports, for Construction~A, Construction~B, and the fixed comparator: human alert rate, AI alert rate, mean tokens inspected with savings, and \(n\). A verdict card interprets the joint cost-and-power criterion used in Section~\ref{sec:results}. Benchmark jobs share a single background worker with screening requests; concurrent submissions receive HTTP 409. Results are descriptive pilot readouts at the demo calibration size and are not the preregistered multi-corpus study.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_benchmark_results.png}
+\caption{Benchmark panel after a short run. Corpus and documents-per-class selectors feed a table of human alert rate, AI alert rate, and mean inspected tokens for each construction and the fixed comparator}
+\label{fig:ui-bench}
+\end{figure}
+
+\subsection{How it Works documentation and limit simulations}
+
+The How it Works tab (Fig.~\ref{fig:ui-how}) documents the method without leaving the application: a three-step Calibrate--Rank--Control overview, the inspection route \(128\to256\to512\to1024\) tokens, closed-form statements of Constructions~A and~B, and a calibration-counts table generated from the live \texttt{/api/status} resolution rows. An independent-audit calculator implements Equation~\eqref{eq:zeroevents} for user-chosen \(N_0\).
+
+Further down, four interactive SVG cards illustrate responsible-use limits with sliders: distribution shift (total-variation erosion of the marginal bound), subgroup composition, repeated deployment multiplicity, and the distinction between a conformal \(p\)-value and a posterior probability (Fig.~\ref{fig:ui-limits}). These are client-side simulations under a fixed normal calibration model (\(m=260\)); they are pedagogical aids, not estimates from the pilot study.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_how_overview.png}
+\caption{How it Works tab. Introductory Calibrate/Rank/Control steps, the token-budget inspection route, and the two construction cards restate the manuscript definitions inside the prototype}
+\label{fig:ui-how}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/ui_how_limits.png}
+\caption{Interactive limit simulations on the How it Works tab. Sliders control distribution shift, subgroup mixing, repeated-deployment multiplicity, and posterior-versus-\(p\)-value interpretation; curves are generated in the browser under a fixed normal calibration model}
+\label{fig:ui-limits}
+\end{figure}
+
+\subsection{HTTP API surface}
+
+The browser client talks only to the local Flask API. Table~\ref{tab:ui-api} lists the routes used by the walkthrough; job endpoints are asynchronous and polled until status is \texttt{done} or \texttt{error}.
+
+\begin{table}[t]
+\caption{Prototype HTTP API used by the web client}\label{tab:ui-api}
+\small
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+Method & Path & Role \\
+\midrule
+GET & \texttt{/} & Renders the single-page client \\
+GET & \texttt{/api/status} & Calibration state, resolution table, ready models \\
+POST & \texttt{/api/detect} & Queue a screening job for pasted text \\
+POST & \texttt{/api/upload} & Queue screening for an uploaded document \\
+POST & \texttt{/api/benchmark} & Queue a small matched corpus benchmark \\
+POST & \texttt{/api/model} & Switch scoring model or detector toggles \\
+GET & \texttt{/api/job/<id>} & Poll job status, progress, and result payload \\
+GET & \texttt{/api/audit} & Recent decision records (no document text) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Audit records written by \texttt{audit.py} are append-only JSON lines with \texttt{schema\_version} 1. They store configuration, \(p\)-values, step counts, verdicts, and timings, and deliberately omit document text and uploaded bytes. Latency summaries (\(p50\)/\(p95\)/max) are reported alongside recent records.
+
+\subsection{Scope of the prototype relative to the manuscript}
+
+The prototype implements the operational protocol of Section~\ref{sec:experiments} (registered family, frozen route, futility stops, resolution-aware weights for~A) and the primary B-versus-fixed comparison interface. It does not, by itself, complete the designed multi-corpus evaluation: the demo calibration uses \(m=260\) rather than the study's \(m=1600\); the UI benchmark is a short descriptive run; early-decision denominators follow the current active-set code and are not comparable to the historical report artifacts discussed in Section~\ref{sec:results}; and RQ4 subgroup, paraphrase, and length-bin analyses are outside the UI. Formal claims remain those stated in the main text and the supplementary proofs above.
 
 \end{appendices}
 
