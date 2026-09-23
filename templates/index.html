@@ -767,10 +767,11 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   <section class="tile tile-parchment" id="benchmark">
     <div class="tile-inner">
       <span class="eyebrow">Empirical check</span>
-      <h2 class="display-md" style="margin-top:8px">Benchmark on Binoculars data</h2>
+      <h2 class="display-md" style="margin-top:8px">Benchmark on evaluation corpora</h2>
       <p class="body muted-light" style="max-width:680px;margin-top:12px">
-        Run both constructions over paired human/AI documents from the Binoculars paper corpora
-        (Hans et al., ICML 2024). The human alert rate should sit near α: that is the marginal
+        Run both constructions over paired human/AI documents: Binoculars paper corpora
+        (Hans et al., ICML 2024) plus the deck-recommended RAID, DetectRL-X, and RealDet
+        caches where enabled. The human alert rate should sit near α: that is the marginal
         false-alert control, and the AI alert rate is the observed detection power.
       </p>
       <div class="param-group" style="margin-top:40px">
@@ -873,7 +874,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           Current route: likelihood @ 128 → likelihood @ 256 → rank @ 512 → log-rank @ 1,024.
           Detector family: likelihood, rank, log-rank, and the stop-slop lexicon (plus a
           Binoculars-style contrasting-model score and Fast-DetectGPT conditional curvature when enabled).
-          DetectGPT T5-perturbation curvature remains a planned addition per the proposal's operational protocol;
+          DetectGPT T5-perturbation curvature is an expensive comparator outside the default registered family (optional registered extensions: Fast-DetectGPT and Binoculars, per paper/);
           policies may skip registered actions.
         </p>
       </div>
@@ -1015,7 +1016,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
       <div class="how-section">
         <h2 class="display-md">About this tool</h2>
         <p class="body muted-light" style="max-width:760px;margin-top:12px">
-          Two conformal constructions for adaptive within-document screening. Construction A registers a finite prefix–detector family, allocates α across weighted conformal ranks, and protects any executed subset by union bound. Construction B calibrates the complete-path maximum of a development-fixed route, so partial-path maxima are bounded by the calibrated maximum and early stopping is free. Both control the marginal probability of any false alert at level α under document-level exchangeability. Proposal stage: the empirical power and cost study remains to be conducted; this interface is the proof of concept.
+          Two conformal constructions for adaptive within-document screening. Construction A registers a finite prefix–detector family, allocates α across weighted conformal ranks, and protects any executed subset by union bound. Construction B calibrates the complete-path maximum of a development-fixed route, so partial-path maxima are bounded by the calibrated maximum and early stopping is free. Both control the marginal probability of any false alert at level α under document-level exchangeability. Status: the reverse-aligned manuscript lives in <span class="mono">paper/</span>; a historical study report is in <span class="mono">study_report.md</span>. The designed multi-corpus evaluation study remains incomplete; this interface is the executable proof of concept.
         </p>
         <p class="caption muted-light" style="margin-top:12px">
           DetectGPT · Mitchell, Lee, Khazatsky, Manning &amp; Finn, Stanford CRFM, 2023 · Binoculars · Hans, Schwarzschild, Cherepanova, Kazemi, Saha, Goldblum, Geiping &amp; Goldstein, UMD, ICML 2024 (evaluation corpora).
@@ -1042,7 +1043,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">What is the proof of concept here?<span class="caret">›</span></button>
-          <div class="faq-a">The proposal's analytic results are implemented as a working system: the calibration pipeline (development/calibration split, frozen transformations, futility rule), both constructions, and an empirical benchmark over the Binoculars paper corpora. Verified behaviors: human alert rates track α under same-domain calibration; AI-generated documents produce lower conformal p-values and alert at the promised level. What remains is the proposal's evaluation study: matched-power comparisons against fixed policies and the cost profiling of the six-month plan. This interface is the executable proof of concept of the theory.</div>
+          <div class="faq-a">The proposal's analytic results are implemented as a working system: the calibration pipeline (development/calibration split, frozen transformations, futility rule), both constructions (with resolution-aware Construction A allocations and active-set early-decision counts), and an empirical benchmark over the deck-recommended corpora. Verified behaviors: human alert rates track α under same-domain calibration; AI-generated documents produce lower conformal p-values and alert at the promised level. A historical study report (<span class="mono">study_report.md</span>) holds matched-power and cost numbers from an earlier run; the reverse-aligned manuscript is under <span class="mono">paper/</span>. The full six-month multi-corpus evaluation is not complete. This interface is the executable proof of concept of the theory.</div>
         </div>
 
         <div class="faq-item">
@@ -1097,7 +1098,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">Which models and detectors are used?<span class="caret">›</span></button>
-          <div class="faq-a">The scoring model is selectable in the Screen tab: gpt2, gpt2-medium, gpt2-large, Qwen2.5-1.5B, Pythia-1.4B, or SmolLM2-1.7B, each with its own cached calibration (first use builds it, ~1–4 minutes). The detector family is likelihood, rank, and log-rank, with an optional Binoculars-style contrasting-model detector (observer vs. performer) and an optional Fast-DetectGPT conditional-curvature detector (reference/scoring pair, analytic discrepancy). The constructions are detector-agnostic; DetectGPT T5-perturbation curvature remains a planned addition for the evaluation study. Human calibration corpora: IMDB reviews or the Binoculars cc_news / cnn / pubmed news corpora.</div>
+          <div class="faq-a">The scoring model is selectable in the Screen tab: gpt2, gpt2-medium, gpt2-large, Qwen2.5-1.5B, Pythia-1.4B, or SmolLM2-1.7B, each with its own cached calibration (first use builds it, ~1–4 minutes). The detector family is likelihood, rank, and log-rank, with an optional Binoculars-style contrasting-model detector (observer vs. performer) and an optional Fast-DetectGPT conditional-curvature detector (reference/scoring pair, analytic discrepancy). The constructions are detector-agnostic; DetectGPT T5-perturbation curvature remains an expensive comparator outside the default registered family (optional registered extensions are Fast-DetectGPT and Binoculars, per the operational protocol in <span class="mono">paper/</span>). Human calibration corpora: IMDB, Binoculars cc_news / cnn / pubmed, or the deck-recommended RAID, DetectRL-X, and RealDet.</div>
         </div>
 
         <div class="faq-item">
@@ -1117,7 +1118,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">Why doesn't the tool multiply ranks or build e-processes?<span class="caret">›</span></button>
-          <div class="faq-a">Marginal conformal validity does not imply the conditional supermartingale property needed for betting-style sequential inference: e.g., U ~ Unif(0,1) is a valid p-value yet E(1/U) = ∞, and dependence between successive factors requires a separate argument. The theory deliberately constructs no e-process and justifies no products of transformed ranks: stopping control comes from the complete-path containment instead. See the paper appendix.</div>
+          <div class="faq-a">Marginal conformal validity does not imply the conditional supermartingale property needed for betting-style sequential inference: e.g., U ~ Unif(0,1) is a valid p-value yet E(1/U) = ∞, and dependence between successive factors requires a separate argument. The theory deliberately constructs no e-process and justifies no products of transformed ranks: stopping control comes from the complete-path containment instead. See <span class="mono">paper/appendix-proofs.tex</span>.</div>
         </div>
 
         <div class="faq-item">
@@ -2317,8 +2318,8 @@ const HELP_ITEMS = [
     process:'Aggregate alert rates over paired human/AI documents from the Binoculars or deck-recommended corpora.',
     math:'Human rate ≈ α under the null (exchangeable docs); AI rate = empirical power.' },
   { sel:'#bench-verdict', title:'Benchmark verdict',
-    process:'Aggregate checks: corpus match, structural resolution, human rates vs α, AI−human separation, and the B-vs-A efficiency comparison on resolvable rows.',
-    math:'Matched human rate ≈ α; separation = AI − human; B cheaper if cost_B/cost_A ≤ 0.8 with paired B−A power lower bound > −0.02.' },
+    process:'Aggregate checks: corpus match, structural resolution, human rates vs α, AI−human separation, and the secondary B-vs-A efficiency comparison on resolvable rows (study pass/fail is B vs fixed ll@1024).',
+    math:'Matched human rate ≈ α; separation = AI − human; study primary: B vs fixed ll@1024 (cost ≤ 0.8, power LB > −0.02); secondary: cost_B/cost_A ≤ 0.8 with B−A power lower bound > −0.02.' },
   { sel:'#counts-table', title:'Calibration counts',
     process:'How many calibration documents a rejection requires on the rank grid. Construction A sizes its active equal-weight subset so the requirement holds at the current m when feasible. Useful power may need more.',
     math:'A: k = ⌊α(m+1)⌋ active, m ≥ ⌈1/(α/k)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },
@@ -2442,7 +2443,7 @@ const TOUR_STEPS = [
     fallbackBody:'The two verdict panels appear here after a run; if you skipped the hands-on step, press Back and click “Screen: both constructions”. Look for B’s tokens-inspected chips (the savings) and the style-marker card beneath the panels.' },
   { tab:'screen', target:'#benchmark',
     title:'Verify it yourself',
-    body:'The benchmark runs both constructions over paired human/AI documents: Binoculars corpora, or the deck-recommended RAID, DetectRL-X, and RealDet. Human alert rates should sit near α (control), AI rates show power, and the cost column shows B’s mean token savings against the ≥ 20% efficiency target.' },
+    body:'The benchmark runs both constructions over paired human/AI documents: Binoculars corpora, or the deck-recommended RAID, DetectRL-X, and RealDet. Human alert rates should sit near α (control), AI rates show power. The study pass/fail criterion is B vs fixed ll@1024 (≥20% cost, paired power LB > −0.02); the panel also shows the secondary B-vs-A efficiency check.' },
   { target:'.tab-bar',
     title:'Where to go deeper',
     body:'How it Works holds the calibration-counts table and the audit calculator. FAQ answers the practical questions, including why some AI text is not flagged. You are ready to screen.',

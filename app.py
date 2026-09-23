@@ -2,8 +2,9 @@
 """Project Burnwatch — adaptive within-document AI-text screening web interface.
 
 Implements the two conformal constructions (registered family + union bound;
-complete-path calibration with early stopping) per the accompanying theory
-manuscript. Calibration uses human-written documents and is cached to disk.
+complete-path calibration with early stopping) per the reverse-aligned
+manuscript in paper/main.tex. Calibration uses human-written documents and
+is cached to disk.
 """
 
 import argparse

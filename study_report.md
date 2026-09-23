@@ -2,22 +2,30 @@
 
 _Generated 2026-09-22T14:04:32.894005+00:00 · model gpt2 · calibration m=1600, dev=100 · detectors ll, rank, logrank, slop · n=150 per class._
 
-Preregistered criterion per (corpus, variant, α): ≥20% lower mean online cost than the fixed ll@1024 policy at the same α, with a one-sided 95% lower bound for the paired power difference above −0.02.
+Preregistered criterion per (corpus, variant, α): ≥20% lower mean online cost than the fixed ll@1024 policy at the same α, with a one-sided 95% lower bound for the paired power difference above −0.02. (Primary criterion is B vs fixed; A vs B is a secondary paired comparison in the manuscript, not part of pass/fail.)
 
 ## Report Status
 
-This report was generated before the structured early-decision metrics and
-metadata corrections were added. Its alert, power, token-cost, and futility
-values remain historical measurements, but its subgroup labels must not be
-used as domain or generator evidence. The earlier RAID `abstracts` label and
-RealDet `all` label were not source metadata; the current pipeline reports
-missing metadata as `unknown`.
+This report is a **historical artifact** from before two implementation fixes:
+
+1. Structured early-decision metrics and metadata corrections (subgroup labels;
+   RAID `abstracts` / RealDet `all` were placeholders, not source metadata —
+   the current pipeline reports missing metadata as `unknown`).
+2. Construction A early-decision denominators now use the **active-set size**
+   (`n_active`), not the full registered family of 16 actions. Any early-decision
+   rates implied for A in this file may over-count non-alert runs as "early"
+   relative to the current code. Regenerate before using those SOP measures.
+
+The reverse-aligned proposal manuscript lives in `paper/main.tex` (with
+`paper/appendix-proofs.tex`). The designed multi-corpus evaluation study from
+the six-month plan is not complete; treat alert, power, token-cost, and futility
+values below as historical measurements only.
 
 The current report schema additionally includes:
 
 | Field | Interpretation |
 |---|---|
-| `early_decision_human_rate` / `early_decision_ai_rate` | Fraction stopping before the full construction route, by class |
+| `early_decision_human_rate` / `early_decision_ai_rate` | Fraction stopping before the construction's full route (A: active-set size; B: full route length) |
 | `length` condition breakdown | Alert rates in 40–127, 128–255, 256–511, 512–1023, and 1024+ word bins |
 | `output_type` | Explicit source type; current text study records report `plain_text` |
 | `source_label` | Dataset domain or generator label, only when actually supplied |
@@ -190,7 +198,7 @@ AI power by generator (Construction B; legacy label invalid):
 - n=150 per class: binomial noise is wide; treat point estimates with their implicit uncertainty.
 - Fixed comparator is ll@1024 at full weight (a proxy for the development-selected fixed policy, not a tuned optimum).
 - Mixed-authorship splices are synthetic 50/50 word splits, not naturalistic edited text.
-- This historical artifact has no early-decision-rate or length/output-type breakdown; regenerate it before using those SOP measures.
+- This historical artifact has no early-decision-rate or length/output-type breakdown; regenerate it before using those SOP measures. After regeneration, Construction A early-decision rates use the active-set denominator (`n_active`), not 16 full registered actions.
 - The historical RAID and RealDet subgroup labels were placeholders and are not valid domain/generator analyses.
 - Paraphrase cells are not valid unless source records carry an explicit paraphrase/attack label; clean-text re-pairing is not paraphrasing.
 - Construction A at α=0.001 needs m≥15999 ranks: reported as infeasible by the resolution floor, not as zero power.

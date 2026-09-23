@@ -1,19 +1,32 @@
 # Project Burnwatch
 
 Project Burnwatch is a Flask web platform for adaptive, conformal screening of
-AI-generated text. It implements:
+AI-generated text. It implements the constructions and protocol described in
+the in-repo manuscript (`paper/main.tex` + `paper/appendix-proofs.tex`):
 
 - Construction A: a registered detector/action family with a union-bound error budget.
   Default allocations are resolution-aware: the error budget is concentrated on
   the largest equal-weight active subset that can reject at the current
   calibration size m and level α (route actions first), so Construction A
   fulfills its rejection requirement instead of splitting α into unreachable
-  equal shares.
+  equal shares. Early-decision rates for A are counted against that active-set
+  size, not the full registered family.
 - Construction B: a development-fixed route whose complete-path maximum is
   calibrated and may stop early.
 - Fixed comparison: `ll@1024` for preregistered cost and power studies.
+  The primary efficiency criterion is B versus this fixed policy (≥20% lower
+  mean online cost at the same α with a one-sided 95% lower bound for the
+  paired power difference above −0.02); A versus B is a secondary paired
+  comparison (RQ3).
 - Human calibration from IMDB, Binoculars, RAID, DetectRL-X, and RealDet caches.
 - Structured benchmark reports for alert rates, power, cost, early decisions, futility, and subgroup conditions.
+
+## Manuscript
+
+`paper/main.tex` is reverse-aligned to this implementation (detector family,
+α grid, resolution floor numbers, B-primary efficiency criterion, weight-rule
+clause). Build with `tectonic paper/main.tex` (pdflatex/latexmk also work when
+`sn-jnl.cls` is available; the preamble falls back to a preview article class).
 
 ## Run the Web App
 
@@ -46,6 +59,11 @@ rebuilt with the same sampling policy.
 ```bash
 python study.py --corpora raid detectrl realdet --out study_report.json
 ```
+
+The committed `study_report.md` is a **historical** run (generated before the
+active-set early-decision fix); regenerate it before treating early-decision
+or subgroup fields as current. The designed multi-corpus evaluation study
+from the six-month plan is not complete.
 
 The study compares A, B, and the fixed comparator across clean and synthetic
 mixed-authorship conditions. Paraphrase cells run only when the source cache

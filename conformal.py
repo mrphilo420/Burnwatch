@@ -3,8 +3,8 @@
 
 Construction A and B.
 
-Implements the two finite-sample constructions of the accompanying theory
-manuscript, per their proofs:
+Implements the two finite-sample constructions of the reverse-aligned
+manuscript under paper/, per their proofs:
 
   * per-document detectors over token budgets (likelihood, rank, log-rank,
     entropy) under a GPT-2 class generative model; larger score = more
