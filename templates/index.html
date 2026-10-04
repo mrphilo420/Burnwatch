@@ -38,11 +38,13 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .sub-nav{position:sticky;top:44px;z-index:49;display:flex;align-items:center;justify-content:space-between;
   height:52px;background:rgba(245,245,247,.8);backdrop-filter:saturate(180%) blur(20px);
   -webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.08);padding:0 24px}
-.tab-bar{display:flex;gap:4px;align-items:center}
+.tab-bar{display:flex;gap:2px;align-items:center;background:rgba(0,0,0,.045);
+  border:1px solid rgba(0,0,0,.07);border-radius:var(--pill);padding:3px}
 .tab{background:transparent;border:none;font-family:var(--text);font-size:14px;font-weight:400;
-  letter-spacing:-.224px;color:var(--ink-muted-48);padding:8px 16px;border-radius:var(--pill);cursor:pointer;
+  letter-spacing:-.224px;color:var(--ink-muted-48);padding:7px 16px;border-radius:var(--pill);cursor:pointer;
   line-height:1;transition:color .15s,background .15s}
 .tab:hover{color:var(--ink)}
+.tab:focus-visible{outline:2px solid var(--primary-focus);outline-offset:2px}
 .tab.active{background:var(--surface-black);color:#fff;font-weight:600}
 .sub-nav-right{display:flex;align-items:center;gap:16px}
 .sub-nav-chip{font-size:12px;letter-spacing:-.12px;color:var(--ink-muted-48)}
@@ -93,6 +95,37 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 /* ── hero / input ──────────────────────────────────────── */
 .hero{display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center}
 .hero .hero-display{max-width:760px}
+
+/* ── section heads, stat strips, callouts ──────────────── */
+.section-head{display:flex;flex-direction:column;gap:12px;max-width:780px}
+.section-head .display-md{margin:0}
+.section-head .body{max-width:680px}
+.section-head-row{flex-direction:row;align-items:flex-end;justify-content:space-between;
+  max-width:none;gap:16px;flex-wrap:wrap}
+.section-head-dark .eyebrow{color:var(--body-muted)}
+.section-head-dark .display-md{color:#fff}
+.note-strip{display:block;max-width:780px;margin-top:22px;
+  background:rgba(0,102,204,.07);border:1px solid rgba(0,102,204,.16);border-radius:14px;
+  padding:14px 18px;font-size:15px;line-height:1.5;letter-spacing:-.2px;color:var(--ink-muted-80)}
+.note-strip b{color:var(--ink);font-weight:600}
+.hero-copy{display:flex;flex-direction:column;align-items:center;gap:14px}
+.hero-stats{display:flex;list-style:none;justify-content:center;flex-wrap:wrap;width:100%;max-width:840px;
+  padding:18px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.hero-stats li{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px;align-items:center;
+  padding:0 18px;border-left:1px solid var(--hairline)}
+.hero-stats li:first-child{border-left:none}
+.hero-stats b{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.4px;color:var(--ink)}
+.hero-stats span{font-size:13px;letter-spacing:-.12px;color:var(--ink-muted-48)}
+
+/* ── atmosphere ────────────────────────────────────────── */
+.tile-dark{position:relative;overflow:hidden}
+.tile-dark::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.55;
+  mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E")}
+.tile-dark > *{position:relative}
+@keyframes heroIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.anim-hero{animation:heroIn .65s cubic-bezier(.25,.8,.3,1) both}
+.hero-stats.anim-hero{animation-delay:.14s}
 .hero .lead{max-width:660px;color:var(--ink-muted-80)}
 .input-tabs{display:inline-flex;gap:2px;background:var(--canvas-parchment);border:1px solid var(--hairline);
   border-radius:var(--pill);padding:3px;margin-top:10px}
@@ -147,6 +180,12 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
 /* ── results · two panels ──────────────────────────────── */
 .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:36px}
+/* grid items default to min-width:auto, which lets wide step tables push the
+   whole page sideways instead of scrolling inside the panel */
+.panel-grid > .panel{min-width:0}
+/* The Simes construction is exhaustive rather than adaptive, so it gets its own
+   full-width row beneath the two route constructions. */
+#panel-S{grid-column:1/-1}
 .panel{background:var(--surface-tile-2);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg);padding:34px 36px;min-width:0}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .panel-head .tagline{color:var(--on-dark)}
@@ -207,6 +246,8 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .verdict-card-light .verdict-badge.good{background:rgba(52,199,89,.14);color:#0a7a31}
 .verdict-card-light .verdict-badge.mixed{background:rgba(255,149,0,.15);color:#b25f00}
 .verdict-card-light .verdict-badge.bad{background:rgba(255,59,48,.13);color:#d70015}
+.verdict-badge.referral{background:rgba(10,131,255,.16);color:#8fc4ff}
+.verdict-card-light .verdict-badge.referral{background:rgba(10,131,255,.13);color:#0a5bd3}
 /* construction A: 6 columns — step, detector, budget, score, p (≤ bound), status */
 .steps-table-a th:nth-child(1),.steps-table-a td:nth-child(1){width:38px;text-align:center}
 .steps-table-a th:nth-child(2),.steps-table-a td:nth-child(2){width:22%}
@@ -257,6 +298,27 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .mark-passive{background:rgba(142,142,147,.16);border-bottom:2px solid #8e8e93}
 .mark-phrase{background:rgba(0,102,204,.11);border-bottom:2px solid #0066cc}
 .mark-emdash{background:rgba(255,204,0,.18);border-bottom:2px solid #d6a800}
+
+/* ── interpretation textbox with writing-style tabs ───── */
+.interpret-card{margin-top:34px;background:var(--canvas);color:var(--ink);border-radius:var(--r-lg);
+  padding:30px 34px}
+.interpret-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.interpret-head .tagline{color:var(--ink)}
+.interpret-sub{margin-top:8px;font-size:14px;line-height:1.5;letter-spacing:-.224px;color:var(--ink-muted-48);max-width:640px}
+.interpret-tabs{display:inline-flex;gap:2px;background:var(--canvas-parchment);border:1px solid var(--hairline);
+  border-radius:var(--pill);padding:3px}
+.itab{background:transparent;border:none;font-family:var(--text);font-size:14px;letter-spacing:-.224px;
+  color:var(--ink-muted-48);padding:8px 16px;border-radius:var(--pill);cursor:pointer;line-height:1;
+  transition:color .15s,background .15s}
+.itab:hover{color:var(--ink)}
+.itab.active{background:var(--surface-black);color:#fff;font-weight:600}
+.interpret-box{display:block;width:100%;margin-top:18px;min-height:200px;resize:vertical;
+  background:var(--canvas-parchment);border:1px solid var(--hairline);border-radius:14px;padding:18px 20px;
+  font-family:var(--text);font-size:15.5px;line-height:1.6;letter-spacing:-.2px;color:var(--ink);outline:none}
+.interpret-box:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(10,131,255,.14)}
+.interpret-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:12px}
+.interpret-foot .caption{color:var(--ink-muted-48);max-width:680px}
+.interpret-actions{display:inline-flex;gap:10px;flex:none}
 .badge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
   font-size:11px;font-weight:600;letter-spacing:-.08px;border-radius:var(--pill);padding:4px 12px;
   text-transform:uppercase;white-space:normal;overflow-wrap:normal;word-break:normal;
@@ -482,13 +544,13 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   .input-meta{align-items:flex-start;flex-direction:column;gap:6px}
   .detect-row{align-items:stretch;flex-direction:column}
   .detect-row .btn{width:100%}
-  .panel{padding:24px 20px}
+  .panel{padding:24px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .panel-grid{gap:18px}
   .panel-head{align-items:flex-start;flex-direction:column}
   .panel-head .badge{align-self:flex-start}
-  .steps-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .steps-table-a{min-width:560px}
   .steps-table-b{min-width:650px}
+  .steps-table-s{min-width:560px}
   .bench-table-scroll{margin-top:24px}
   .bench-table{min-width:760px;white-space:nowrap}
   .route{align-items:center;flex-direction:column;gap:6px}
@@ -497,6 +559,10 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   .route:hover .route-arrow{transform:rotate(90deg)}
   .limit-card{padding:20px}
   .marked-card{padding:22px 20px}
+  .interpret-card{padding:22px 20px}
+  .interpret-head{flex-direction:column}
+  .interpret-tabs{width:100%;overflow-x:auto}
+  .itab{flex:1;padding:9px 10px;font-size:13px}
   .footer{padding:48px 16px 36px}
 }
 
@@ -517,6 +583,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
 @media (prefers-reduced-motion: reduce){
   .input-tab,.chip,.btn,.progress-fill,.verdict-fill,.compare-fill{transition:none!important}
+  .anim-hero{animation:none!important}
 }
 </style>
 </head>
@@ -533,9 +600,10 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
 <!-- sub-nav · tabs -->
 <div class="sub-nav">
-  <div class="tab-bar">
+  <div class="tab-bar" role="tablist" aria-label="Sections">
     <button class="tab active" data-tab="screen" type="button">Screen</button>
-    <button class="tab" data-tab="how" type="button">How it Works</button>
+    <button class="tab" data-tab="bench" type="button">Benchmark</button>
+    <button class="tab" data-tab="how" type="button">Method</button>
     <button class="tab" data-tab="faq" type="button">FAQ</button>
   </div>
   <div class="sub-nav-right">
@@ -566,8 +634,16 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
   <section class="tile tile-light" id="detect">
     <div class="tile-inner hero">
-      <h1 class="hero-display">Adaptive, error-controlled screening.</h1>
-      <p class="lead">Paste a passage. Prefix detectors run under a generative model, and conformal ranks decide, with a provable false-alert bound, whether to flag the document for review.</p>
+      <div class="hero-copy anim-hero">
+        <span class="eyebrow">Conformal text forensics</span>
+        <h1 class="hero-display">Adaptive, error-controlled screening.</h1>
+        <p class="lead">Paste a passage. Prefix detectors run under a generative model, and conformal ranks decide, with a provable false-alert bound, whether to flag the document for review.</p>
+      </div>
+      <ul class="hero-stats anim-hero">
+        <li><b>3</b><span>inspection paths · A · Simes · B</span></li>
+        <li><b>K = 16</b><span>registered actions per screen</span></li>
+        <li><b>≤ α</b><span>false-alert bound on every path</span></li>
+      </ul>
       <div class="input-tabs">
         <button class="input-tab active" data-input="text" type="button">Paste text</button>
         <button class="input-tab" data-input="file" type="button">Upload file</button>
@@ -615,13 +691,15 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
   <section class="tile tile-parchment" id="constructions">
     <div class="tile-inner">
-      <span class="eyebrow">Screening controls</span>
-      <h2 class="display-md" style="margin-top:8px">Screen the document</h2>
-      <p class="body muted-light" style="max-width:680px;margin-top:12px">
-        One scoring pass under the generative model feeds both constructions.
-        Run them together: each panel below reports its own verdict and
-        conformal evidence.
-      </p>
+      <header class="section-head">
+        <span class="eyebrow">Screening controls</span>
+        <h2 class="display-md">Screen the document</h2>
+        <p class="body muted-light">
+          One scoring pass under the generative model feeds all three inspection paths.
+          Run them together: each panel below reports its own verdict and
+          conformal evidence.
+        </p>
+      </header>
       <div class="param-group" style="margin-top:40px">
         <h3>Scoring model</h3>
         <div class="chip-grid" data-group="model" id="model-chips"></div>
@@ -650,7 +728,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
         <p class="caption muted-light" id="resolution-hint">…</p>
       </div>
       <div class="detect-row" style="margin-top:32px">
-        <button class="btn btn-store-hero" id="btn-detect" type="button">Screen: both constructions</button>
+        <button class="btn btn-store-hero" id="btn-detect" type="button">Screen: A · Simes · B</button>
         <span class="caption muted-light">P(any alert under the null) ≤ α, on each inspection path.</span>
       </div>
       <div class="progress" id="progress" hidden>
@@ -662,13 +740,16 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
   <section class="tile tile-dark tile-results" id="results" hidden>
     <div class="tile-inner">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span class="eyebrow" style="color:var(--body-muted)">Results: one document, two constructions</span>
+      <header class="section-head section-head-row section-head-dark">
+        <div class="section-head">
+          <span class="eyebrow">Your screen</span>
+          <h2 class="display-md">One document, three inspection paths</h2>
+        </div>
         <button class="btn btn-secondary" id="btn-marked" type="button" hidden>Show AI-phrasing highlights</button>
-      </div>
+      </header>
       <p class="result-source" id="result-source" hidden></p>
 
-      <!-- decision aid: combined read of both constructions -->
+      <!-- decision aid: combined read of all three inspection paths -->
       <div class="verdict-card" id="screen-verdict" hidden>
         <div class="verdict-head">
           <h3 class="tagline">What this result means</h3>
@@ -739,6 +820,59 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           <p class="panel-foot fine-print" id="foot-B"></p>
         </div>
 
+        <div class="panel" id="panel-S">
+          <div class="panel-head">
+            <h3 class="tagline">Simes rule</h3>
+            <span class="badge" id="badge-S">…</span>
+          </div>
+          <p class="panel-desc">Exhaustive ranked family · corrected level α/H<sub>K</sub> · no early exit</p>
+          <div class="verdict-row">
+            <span class="verdict-dot" id="dot-S"></span>
+            <h4 class="display-md" id="label-S">…</h4>
+          </div>
+          <p class="verdict-note" id="note-S"></p>
+          <div class="savings-stat">
+            <div class="savings-row">
+              <span class="savings-num off" id="savings-num-S">0%</span>
+              <span class="savings-label">tokens saved vs full budget (Simes reads every rank)</span>
+            </div>
+            <div class="savings-bar"><div class="savings-fill" id="savings-fill-S" style="width:100%"></div></div>
+            <div class="savings-sub" id="savings-sub-S"></div>
+          </div>
+          <div class="results-meta" id="meta-S"></div>
+          <table class="steps-table steps-table-s" id="table-S">
+            <thead><tr>
+              <th>Rank k</th><th>Detector</th><th>Budget</th><th>Score</th><th>p ≤ α·k/K</th><th>Status</th>
+            </tr></thead>
+            <tbody id="body-S"></tbody>
+          </table>
+          <p class="panel-foot fine-print" id="foot-S"></p>
+        </div>
+
+      </div>
+
+      <!-- interpretation: style-switched write-up of this run -->
+      <div class="interpret-card" id="interpret-card" data-interp="screen" hidden>
+        <div class="interpret-head">
+          <div>
+            <h3 class="tagline">Interpretation</h3>
+            <p class="interpret-sub">A paste-ready read of this run in the selected writing style. Edit freely — each tab keeps its own draft, and new runs regenerate them.</p>
+          </div>
+          <div class="interpret-tabs" role="tablist" aria-label="Writing style">
+            <button class="itab active" type="button" data-style="apa">APA 7</button>
+            <button class="itab" type="button" data-style="mla">MLA 9</button>
+            <button class="itab" type="button" data-style="chicago">Chicago</button>
+            <button class="itab" type="button" data-style="ieee">IEEE</button>
+          </div>
+        </div>
+        <textarea class="interpret-box" rows="8" spellcheck="true" aria-label="Interpretation of this run"></textarea>
+        <div class="interpret-foot">
+          <span class="caption interpret-note"></span>
+          <span class="interpret-actions">
+            <button class="btn btn-secondary btn-interpret-reset" type="button">Regenerate</button>
+            <button class="btn btn-secondary btn-interpret-copy" type="button">Copy</button>
+          </span>
+        </div>
       </div>
 
       <!-- marked text (Grammarly-style) -->
@@ -764,16 +898,26 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
     </div>
   </section>
 
+</div>
+
+<!-- ============ TAB: BENCHMARK ============ -->
+<div class="tab-panel" id="tab-bench" hidden>
+
   <section class="tile tile-parchment" id="benchmark">
     <div class="tile-inner">
-      <span class="eyebrow">Empirical check</span>
-      <h2 class="display-md" style="margin-top:8px">Benchmark on evaluation corpora</h2>
-      <p class="body muted-light" style="max-width:680px;margin-top:12px">
-        Run both constructions over paired human/AI documents: Binoculars paper corpora
-        (Hans et al., ICML 2024) plus the deck-recommended RAID, DetectRL-X, and RealDet
-        caches where enabled. The human alert rate should sit near α: that is the marginal
-        false-alert control, and the AI alert rate is the observed detection power.
-      </p>
+      <header class="section-head">
+        <span class="eyebrow">Empirical check</span>
+        <h2 class="display-md">Benchmark on evaluation corpora</h2>
+        <p class="body muted-light">
+          Run both constructions over paired human/AI documents: Binoculars paper corpora
+          (Hans et al., ICML 2024) plus the deck-recommended RAID, DetectRL-X, and RealDet
+          caches where enabled. The human alert rate should sit near α: that is the marginal
+          false-alert control, and the AI alert rate is the observed detection power.
+        </p>
+      </header>
+      <p class="note-strip"><b>No text required.</b> The benchmark scores human and AI corpus
+        documents straight from disk — it never reads the Screen tab’s text box, so there is
+        nothing to paste first.</p>
       <div class="param-group" style="margin-top:40px">
         <h3>Corpus · falcon-7b generations</h3>
         <div class="chip-grid" data-group="bench-corpus">
@@ -824,17 +968,43 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
       </div>
 
       <p class="bench-note caption muted-light" id="bench-note"></p>
+
+      <!-- interpretation: style-switched write-up of this benchmark run -->
+      <div class="interpret-card" id="bench-interpret-card" data-interp="bench" hidden>
+        <div class="interpret-head">
+          <div>
+            <h3 class="tagline">Interpretation</h3>
+            <p class="interpret-sub">A paste-ready read of this benchmark run in the selected writing style. Edit freely — each tab keeps its own draft, and a new run regenerates them.</p>
+          </div>
+          <div class="interpret-tabs" role="tablist" aria-label="Writing style">
+            <button class="itab active" type="button" data-style="apa">APA 7</button>
+            <button class="itab" type="button" data-style="mla">MLA 9</button>
+            <button class="itab" type="button" data-style="chicago">Chicago</button>
+            <button class="itab" type="button" data-style="ieee">IEEE</button>
+          </div>
+        </div>
+        <textarea class="interpret-box" rows="8" spellcheck="true" aria-label="Interpretation of this benchmark run"></textarea>
+        <div class="interpret-foot">
+          <span class="caption interpret-note"></span>
+          <span class="interpret-actions">
+            <button class="btn btn-secondary btn-interpret-reset" type="button">Regenerate</button>
+            <button class="btn btn-secondary btn-interpret-copy" type="button">Copy</button>
+          </span>
+        </div>
+      </div>
     </div>
   </section>
 
 </div>
 
-<!-- ============ TAB: HOW IT WORKS ============ -->
+<!-- ============ TAB: METHOD ============ -->
 <div class="tab-panel" id="tab-how" hidden>
   <section class="tile tile-parchment">
     <div class="tile-inner">
-      <span class="eyebrow">Method</span>
-      <h2 class="display-md" style="margin-top:8px">How it works</h2>
+      <header class="section-head">
+        <span class="eyebrow">Method</span>
+        <h2 class="display-md">How it works</h2>
+      </header>
 
       <div class="steps">
         <div class="step">
@@ -880,7 +1050,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
       </div>
 
       <div class="how-section">
-        <h2 class="display-md">The two constructions</h2>
+        <h2 class="display-md">The constructions</h2>
 
         <div class="const-card">
           <h3>Construction A: allocate error across actions</h3>
@@ -911,7 +1081,26 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           <p class="caption muted-light" style="margin-top:10px">
             Failures are sentineled: S<sub>a</sub> = −∞ and g<sub>a</sub>(−∞) = −∞, so a
             failed action adds no alert evidence. Complete calibration routes are computed
-            with alert-based stopping disabled.
+            with alert-based stopping disabled. The panel also reports the attestation
+            step τ*, where the executed prefix first reaches the complete maximum M<sub>π</sub>.
+          </p>
+        </div>
+
+        <div class="const-card">
+          <h3>Simes rule: rank the whole family</h3>
+          <p class="body muted-light" style="margin-top:8px">
+            Sort all K registered actions by p-value and reject at the first rank k with
+            p<sub>(k)</sub> ≤ α·k/K — or, correctly under arbitrary dependence, at the
+            corrected level α/H<sub>K</sub> with H<sub>K</sub> the K-th harmonic number.
+            No weights, no route, no early exit.
+          </p>
+          <div class="formula">
+            reject at <b>min k : p<sub>(k)</sub> ≤ α·k/(K·H<sub>K</sub>)</b> &nbsp;&nbsp;·&nbsp;&nbsp; m ≥ ⌈H<sub>K</sub>/α⌉ − 1
+          </div>
+          <p class="caption muted-light" style="margin-top:10px">
+            The α/H<sub>K</sub> form is the familywise-safe reading when ranks may be dependent;
+            plain α recovers the classical Simes step-up under positive dependence. Simes is
+            reported alongside A and B as a third, exhaustive read of the same score table.
           </p>
         </div>
       </div>
@@ -923,10 +1112,11 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           rejection on the rank grid: useful detection power may require more data.
         </p>
         <table class="how-table" id="counts-table">
-          <thead><tr><th>Nominal α</th><th id="counts-head">A · resolution-aware allocations</th><th>B · one path rank</th></tr></thead>
+          <thead><tr><th>Nominal α</th><th id="counts-head">A · resolution-aware allocations</th><th>B · one path rank</th><th>Simes · corrected α/H<sub>K</sub></th></tr></thead>
           <tbody id="counts-body"></tbody>
         </table>
         <p class="caption muted-light" style="margin-top:12px" id="counts-note"></p>
+        <p class="caption muted-light" style="margin-top:8px" id="counts-diag"></p>
       </div>
 
       <div class="how-section">
@@ -1016,7 +1206,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
       <div class="how-section">
         <h2 class="display-md">About this tool</h2>
         <p class="body muted-light" style="max-width:760px;margin-top:12px">
-          Two conformal constructions for adaptive within-document screening. Construction A registers a finite prefix–detector family, allocates α across weighted conformal ranks, and protects any executed subset by union bound. Construction B calibrates the complete-path maximum of a development-fixed route, so partial-path maxima are bounded by the calibrated maximum and early stopping is free. Both control the marginal probability of any false alert at level α under document-level exchangeability. Status: the reverse-aligned manuscript lives in <span class="mono">paper/</span>; a historical study report is in <span class="mono">study_report.md</span>. The designed multi-corpus evaluation study remains incomplete; this interface is the executable proof of concept.
+          Three conformal inspection paths for adaptive within-document screening. Construction A registers a finite prefix–detector family, allocates α across weighted conformal ranks, and protects any executed subset by union bound. Construction B calibrates the complete-path maximum of a development-fixed route, so partial-path maxima are bounded by the calibrated maximum and early stopping is free. The Simes rule ranks every registered action and rejects at the first rank crossing α·k/(K·H<sub>K</sub>), exhausting the score table with no early exit. All three control the marginal probability of any false alert at level α under document-level exchangeability. Status: the reverse-aligned manuscript lives in <span class="mono">paper/</span>; a historical study report is in <span class="mono">study_report.md</span>. The designed multi-corpus evaluation study remains incomplete; this interface is the executable proof of concept.
         </p>
         <p class="caption muted-light" style="margin-top:12px">
           DetectGPT · Mitchell, Lee, Khazatsky, Manning &amp; Finn, Stanford CRFM, 2023 · Binoculars · Hans, Schwarzschild, Cherepanova, Kazemi, Saha, Goldblum, Geiping &amp; Goldstein, UMD, ICML 2024 (evaluation corpora).
@@ -1038,12 +1228,12 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item open">
           <button class="faq-q" type="button">What does this tool do?<span class="caret">›</span></button>
-          <div class="faq-a">It screens one document against a specified human-reference population using two conformal constructions over prefix–detector scores. The output is a decision: <i>flag for review</i> or <i>no alert at this budget</i>, with a provable marginal bound on any false alert: P(any alert under the null) ≤ α.</div>
+          <div class="faq-a">It screens one document against a specified human-reference population using three conformal inspection paths over prefix–detector scores: the weighted Bonferroni family (A), the exhaustive Simes ranking, and the complete-path rank (B). The output is a decision: <i>flag for review</i> or <i>no alert at this budget</i>, with a provable marginal bound on any false alert: P(any alert under the null) ≤ α. A document below the 32-word validity gate returns a third outcome, <i>unprocessable → refer to human review</i>: nothing was scored, so nothing may alert or acquit.</div>
         </div>
 
         <div class="faq-item">
           <button class="faq-q" type="button">What is the proof of concept here?<span class="caret">›</span></button>
-          <div class="faq-a">The proposal's analytic results are implemented as a working system: the calibration pipeline (development/calibration split, frozen transformations, futility rule), both constructions (with resolution-aware Construction A allocations and active-set early-decision counts), and an empirical benchmark over the deck-recommended corpora. Verified behaviors: human alert rates track α under same-domain calibration; AI-generated documents produce lower conformal p-values and alert at the promised level. A historical study report (<span class="mono">study_report.md</span>) holds matched-power and cost numbers from an earlier run; the reverse-aligned manuscript is under <span class="mono">paper/</span>. The full six-month multi-corpus evaluation is not complete. This interface is the executable proof of concept of the theory.</div>
+          <div class="faq-a">The proposal's analytic results are implemented as a working system: the calibration pipeline (development/calibration split, frozen transformations, futility rule, calibration diagnostics), all three constructions (resolution-aware Construction A allocations, the Simes rule at the corrected level α/H<sub>K</sub>, and Construction B with its attestation step τ*), the pre-scoring validity gate, the Table 2 calibration counts, and an empirical benchmark over the deck-recommended corpora. Verified behaviors: human alert rates track α under same-domain calibration; AI-generated documents produce lower conformal p-values and alert at the promised level. A historical study report (<span class="mono">study_report.md</span>) holds matched-power and cost numbers from an earlier run; the reverse-aligned manuscript is under <span class="mono">paper/</span>. The full six-month multi-corpus evaluation is not complete. This interface is the executable proof of concept of the theory.</div>
         </div>
 
         <div class="faq-item">
@@ -1063,12 +1253,22 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">What is Construction B?<span class="caret">›</span></button>
-          <div class="faq-a">Calibration of one scalar: the complete-path maximum M<sub>π</sub>(X) of a development-fixed route. Since every partial-path maximum is ≤ the complete maximum, the terminal conformal rank protects early stopping without splitting the error budget. Alert at the first executed action with p<sub>t</sub><sup>path</sup> ≤ α. Needs only m ≥ 99 at α = 0.01, far fewer calibration documents than A.</div>
+          <div class="faq-a">Calibration of one scalar: the complete-path maximum M<sub>π</sub>(X) of a development-fixed route. Since every partial-path maximum is ≤ the complete maximum, the terminal conformal rank protects early stopping without splitting the error budget. Alert at the first executed action with p<sub>t</sub><sup>path</sup> ≤ α. Needs only m ≥ 99 at α = 0.01, far fewer calibration documents than A. The panel also reports the attestation step τ* = first t where the executed prefix attains the complete maximum M<sub>π</sub> (recomputed with alert-stopping disabled — a diagnostic only; it never changes the decision).</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">What is the Simes rule?<span class="caret">›</span></button>
+          <div class="faq-a">Sort every registered action by p-value and reject at the first ordered rank k with p<sub>(k)</sub> ≤ α·k/K — the classical Simes step-up. Because ranks within one document may be arbitrarily dependent, the deployed panel corrects the level to <b>α/H<sub>K</sub></b> (H<sub>K</sub> = Σ 1/i over K actions), the reading that holds under exchangeability alone; plain α is justified under independence or PRDS and is shown for comparison. Simes needs no weights and no route, and it evaluates the whole score table (no early exit, 0% token savings by design). Its rank requirement, m ≥ ⌈H<sub>K</sub>/α⌉ − 1, sits between B's ⌈1/α⌉ − 1 and equal-Bonferroni A's ⌈K/α⌉ − 1: 62/310/3,103 at K = 12 for α = 0.05/0.01/0.001.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button">Why was my document marked “unprocessable”?<span class="caret">›</span></button>
+          <div class="faq-a">A deterministic validity gate runs before any scoring: a document needs at least 32 words (the minimum the detector family scores reliably). Below that, no scores and no ranks exist, so all three paths return the explicit unprocessable outcome — no alert, no acquittal, no consumption of α — and the verdict card sends the document to human review instead of issuing a statistical read. The gate is two-valued and never fires on a document that was actually scored.</div>
         </div>
 
         <div class="faq-item">
           <button class="faq-q" type="button">What do the calibration counts mean?<span class="caret">›</span></button>
-          <div class="faq-a">They are rank-feasibility minima: the smallest conformal rank is 1/(m+1), so rejection requires m ≥ ⌈1/(α·w<sub>a</sub>)⌉ − 1 for A and m ≥ ⌈1/α⌉ − 1 for B. Meeting the count permits rejection on the rank grid; it does not guarantee useful detection power: a score must also actually attain the minimum rank. The counts table in "How it Works" shows whether the current calibration m satisfies them.</div>
+          <div class="faq-a">They are rank-feasibility minima: the smallest conformal rank is 1/(m+1), so rejection requires m ≥ ⌈1/(α·w<sub>a</sub>)⌉ − 1 for A, m ≥ ⌈1/α⌉ − 1 for B, and m ≥ ⌈H<sub>K</sub>/α⌉ − 1 for Simes at the corrected level (H<sub>K</sub> the K-th harmonic number; K = 16 gives 67 at α = 0.05 and 338 at α = 0.01). Meeting the count permits rejection on the rank grid; it does not guarantee useful detection power: a score must also actually attain the minimum rank. The counts table in "Method" shows whether the current calibration m satisfies them.</div>
         </div>
 
         <div class="faq-item">
@@ -1098,7 +1298,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">Which models and detectors are used?<span class="caret">›</span></button>
-          <div class="faq-a">The scoring model is selectable in the Screen tab: gpt2, gpt2-medium, gpt2-large, Qwen2.5-1.5B, Pythia-1.4B, or SmolLM2-1.7B, each with its own cached calibration (first use builds it, ~1–4 minutes). The detector family is likelihood, rank, and log-rank, with an optional Binoculars-style contrasting-model detector (observer vs. performer) and an optional Fast-DetectGPT conditional-curvature detector (reference/scoring pair, analytic discrepancy). The constructions are detector-agnostic; DetectGPT T5-perturbation curvature remains an expensive comparator outside the default registered family (optional registered extensions are Fast-DetectGPT and Binoculars, per the operational protocol in <span class="mono">paper/</span>). Human calibration corpora: IMDB, Binoculars cc_news / cnn / pubmed, or the deck-recommended RAID, DetectRL-X, and RealDet.</div>
+          <div class="faq-a">The scoring model is selectable in the Screen tab: gpt2, gpt2-medium, gpt2-large, Qwen2.5-1.5B, Pythia-1.4B, or SmolLM2-1.7B, each with its own cached calibration (first use builds it, ~5–10 minutes at the default m = 4,000). The detector family is likelihood, rank, and log-rank, with an optional Binoculars-style contrasting-model detector (observer vs. performer) and an optional Fast-DetectGPT conditional-curvature detector (reference/scoring pair, analytic discrepancy). The constructions are detector-agnostic; DetectGPT T5-perturbation curvature remains an expensive comparator outside the default registered family (optional registered extensions are Fast-DetectGPT and Binoculars, per the operational protocol in <span class="mono">paper/</span>). Human calibration corpora: IMDB, Binoculars cc_news / cnn / pubmed, or the deck-recommended RAID, DetectRL-X, and RealDet.</div>
         </div>
 
         <div class="faq-item">
@@ -1128,7 +1328,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 
         <div class="faq-item">
           <button class="faq-q" type="button">How do I run this with different settings?<span class="caret">›</span></button>
-          <div class="faq-a"><span class="mono">python app.py --base-model Qwen/Qwen2.5-1.5B --corpus cnn --binoculars --m 260</span>. Calibration caches are per (model, corpus, detector set, m) and rebuild automatically when the configuration changes. The audit bound, calibration counts, and both constructions can also be run from the CLI: <span class="mono">python conformal.py --screen file.txt --construction both</span>.</div>
+          <div class="faq-a"><span class="mono">python app.py --base-model Qwen/Qwen2.5-1.5B --corpus cnn --binoculars --m 4000</span>. Calibration caches are per (model, corpus, detector set, m) and rebuild automatically when the configuration changes. The audit bound, calibration counts, and all three paths can also be run from the CLI: <span class="mono">python conformal.py --screen file.txt --construction both</span> (or <span class="mono">--construction Simes</span> for the ranked rule alone).</div>
         </div>
 
       </div>
@@ -1176,7 +1376,7 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
       A short, self-paced tour of the Screen tab. By the end you will be able to:
     </p>
     <ul class="limits" style="margin-top:8px">
-      <li>paste a document and run both conformal constructions;</li>
+      <li>paste a document and run all three inspection paths (A, Simes, B);</li>
       <li>choose the scoring model and detector family that fit the text;</li>
       <li>read each verdict panel, including how many tokens early stopping saved;</li>
       <li>verify the method on the Binoculars benchmark, and find the reference material.</li>
@@ -1234,8 +1434,9 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 </footer>
 
 <script>
-const LEVELS = { alert:{color:'#ff3b30'}, clear:{color:'#34c759'} };
-const STATE = { alpha:0.05, model:'gpt2', binoculars:false, fast:false, running:false, jobId:null };
+const LEVELS = { alert:{color:'#ff3b30'}, clear:{color:'#34c759'}, referral:{color:'#0a83ff'} };
+const STATE = { alpha:0.05, model:'gpt2', binoculars:false, fast:false, running:false, jobId:null,
+  corpus:'realdet' };
 const BENCH = { corpus:'ccnews', n:20 };
 const $ = id => document.getElementById(id);
 const MODEL_LABELS = {
@@ -1278,7 +1479,7 @@ function lockWhileCalibrating(status){
 }
 
 /* ── tabs ── */
-const TABS = ['screen', 'how', 'faq'];
+const TABS = ['screen', 'bench', 'how', 'faq'];
 function showTab(name){
   if(!TABS.includes(name)) name = 'screen';
   TABS.forEach(t=>{
@@ -1305,8 +1506,9 @@ function applyStatus(s){
   $('bench-hint').textContent = `family: ${c.detectors.join(', ')} × budgets ${c.budgets.join('/')}`
     + (c.binoculars ? ' · contrasting-model detector on' : '')
     + (c.fastdetect ? ' · Fast-DetectGPT curvature on' : '');
-  if(c.resolution) renderCounts(c.resolution);
+  if(c.resolution) renderCounts(c.resolution, c.diagnostics);
   STATE.model = c.model;
+  STATE.corpus = c.corpus || STATE.corpus;
   STATE.binoculars = c.binoculars;
   STATE.fast = !!c.fastdetect;
   renderModelChips(c);
@@ -1367,7 +1569,7 @@ function renderModelChips(c){
 function updateModelHints(c){
   $('model-hint').textContent =
     `Frontier-model text separates better under stronger scorers or the contrasting detector. ` +
-    `A model not yet cached builds its calibration on first use (~1–4 min).`;
+    `A model not yet cached builds its calibration on first use (~5–10 min at m = 4,000).`;
   const compatible = ['gpt2', 'gpt2-large'].includes(STATE.model);
   const fastCompatible = ['gpt2'].includes(STATE.model);
   $('bino-hint').textContent = (STATE.model === 'gpt2-medium')
@@ -1424,7 +1626,7 @@ function finishModelSwitch(res){
   fetch('/api/status').then(r=>r.json()).then(s=>{
     renderModelChips(s.calibration);
     updateModelHints(s.calibration);
-    renderCounts(s.calibration.resolution);
+    renderCounts(s.calibration.resolution, s.calibration.diagnostics);
     $('bench-hint').textContent = `family: ${s.calibration.detectors.join(', ')} × budgets ${s.calibration.budgets.join('/')}`
       + (s.calibration.binoculars ? ' · contrasting-model detector on' : '')
       + (s.calibration.fastdetect ? ' · Fast-DetectGPT curvature on' : '');
@@ -1443,32 +1645,50 @@ function resolutionHint(){
     const w = k > 0 ? 1/k : 0;
     const mReqA = k > 0 ? (Math.ceil(1/(a*w)) - 1) : (Math.ceil(1/a) - 1);
     const mReqB = Math.ceil(1/a) - 1;
+    let harmon = 0;
+    for(let i = 1; i <= nA; i++) harmon += 1/i;
+    const mReqS = Math.ceil(harmon/a) - 1;
     const aTxt = k > 0
       ? `A resolvable at α=${a} with ${k}/${nA} active actions (w=${k>0?(1/k).toFixed(4):'0'}), m ≥ ${mReqA} (${c.m >= mReqA ? 'yes' : 'no'})`
       : `A cannot reject at α=${a} with m=${c.m} (need m ≥ ${mReqA} even for one full-weight action)`;
     $('resolution-hint').textContent =
-      `Calibration m=${c.m}. ${aTxt} · B for m ≥ ${mReqB} (${c.m >= mReqB ? 'yes' : 'no'}).`;
+      `Calibration m=${c.m}. ${aTxt} · B for m ≥ ${mReqB} (${c.m >= mReqB ? 'yes' : 'no'}) ` +
+      `· Simes at corrected level α/H_K (H_K=${harmon.toFixed(3)}) for m ≥ ${mReqS} (${c.m >= mReqS ? 'yes' : 'no'}).`;
   }).catch(()=>{});
 }
-function renderCounts(res){
+function renderCounts(res, diagnostics){
   const rowPlan = (row) => {
     const k = row.a_n_active;
     if(k == null) return `${res.n_actions} equal`;
     if(k <= 0) return 'infeasible';
     return `${k} active (w=1/${k})`;
   };
-  $('counts-head').textContent = `A · resolution-aware allocations`;
   $('counts-body').innerHTML = res.rows.map(row=>{
+    const hTxt = res.harmonic ? ` · H<sub>K</sub> = ${(+res.harmonic).toFixed(3)}` : '';
     return `<tr>
       <td><b>${row.alpha}</b></td>
       <td>m ≥ <b>${row.a_m_req.toLocaleString()}</b> · ${rowPlan(row)} ${row.a_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
       <td>m ≥ <b>${row.b_m_req.toLocaleString()}</b> ${row.b_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
+      <td>m ≥ <b>${(row.simes_m_req ?? 0).toLocaleString()}</b>${hTxt} ${row.simes_ok ? '<span class="ok">✓ with current m</span>' : '<span class="no">✗ not with current m</span>'}</td>
     </tr>`;
   }).join('');
   $('counts-note').textContent =
-    `Current configuration: ${res.n_actions} registered actions; Construction A concentrates α on the largest equal-weight active subset the rank grid can reject (route actions first), so Corollary A holds at the current m when shown feasible. One path rank for B, m = ${res.m}. ` +
-    `Full-family equal weights (1/${res.n_actions}) would need m ≥ ${Math.ceil(res.n_actions/0.05)-1} at α=0.05. ` +
+    `Current configuration: ${res.n_actions} registered actions (K); Construction A concentrates α on the largest equal-weight active subset the rank grid can reject (route actions first), so Corollary A holds at the current m when shown feasible; B uses one path rank; Simes corrects α to α/H_K over all K ranks. m = ${res.m}. ` +
+    `Full-family equal weights (1/${res.n_actions}) would need m ≥ ${Math.ceil(res.n_actions/0.05)-1} at α=0.05; Simes at α=0.05 needs m ≥ ${Math.ceil((res.harmonic || 1)/0.05)-1}. ` +
+    `Reference counts from the manuscript: a zero-error audit needs N₀ ≥ 2,995 for the 0.001 target, a 10/α reference tail needs 1,000 development documents at α = 0.01, and the uniformity grid needs 18,445. ` +
     `Counts permit rejection on the rank grid; useful power may require more data.`;
+  renderCountsDiag(diagnostics);
+}
+function renderCountsDiag(d){
+  const el = $('counts-diag');
+  if(!el) return;
+  if(!d || !d.route){ el.textContent = ''; return; }
+  const top = d.max_share_top;
+  const bits = [];
+  if(top) bits.push(`max share: ${top.action} supplies Mπ on ${(top.share*100).toFixed(0)}% of routes`);
+  bits.push(`empty routes ${(100*(d.empty_route_rate ?? 0)).toFixed(1)}%`);
+  bits.push(`per-action failure rate ${(100*(d.failure_rate ?? 0)).toFixed(1)}%`);
+  el.textContent = `Calibration diagnostics — ${bits.join(' · ')}.`;
 }
 
 /* ── audit calculator ── */
@@ -1648,7 +1868,7 @@ function setBusy(b){
   $('btn-detect-nav').disabled = b;
   $('btn-bench').disabled = b;
   $('btn-screen-file').disabled = b;
-  $('btn-detect').textContent = b ? 'Screening…' : 'Screen: both constructions';
+  $('btn-detect').textContent = b ? 'Screening…' : 'Screen: A · Simes · B';
   $('btn-detect-nav').textContent = b ? 'Screening…' : 'Screen';
   if(b) lockConfig(); else unlockConfig();
 }
@@ -1721,12 +1941,13 @@ const benchProg = $('bench-progress'), benchFill = $('bench-fill'), benchLabel =
 let benchRunning = false;
 
 async function runBenchmark(){
-  if(benchRunning || STATE.running) return;
+  if(benchRunning || STATE.running || fileJobRunning) return;
   benchRunning = true;
   lockConfig();
   $('btn-bench').disabled = true;
   $('btn-bench').textContent = 'Benchmarking…';
   benchProg.hidden = false; benchFill.style.width = '3%';
+  benchLabel.classList.remove('progress-error');
   benchLabel.textContent = 'Queued…';
   try{
     const res = await fetch('/api/benchmark', {
@@ -1734,12 +1955,13 @@ async function runBenchmark(){
       body: JSON.stringify({ corpus: BENCH.corpus, n: BENCH.n }),
     });
     const data = await res.json();
-    if(!res.ok){ benchLabel.textContent = (data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Request failed.'; benchLabel.classList.add('progress-error'); return; }
+    if(!res.ok){ benchLabel.textContent = (data.active_job ? data.error + ' · ' + data.active_job : data.error) || 'Request failed.'; benchLabel.classList.add('progress-error'); resetBenchButton(); return; }
     schedulePoll(()=>pollBenchmark(data.job_id), 'bench', 600);
   }catch(err){
     benchLabel.textContent = 'Network error: is the server running?';
     benchLabel.classList.add('progress-error');
-  } finally { if(!benchRunning){ resetBenchButton(); } }
+    resetBenchButton();
+  }
 }
 function resetBenchButton(){
   benchRunning = false;
@@ -1791,6 +2013,7 @@ function renderBenchmark(res){
   }).join('');
   $('bench-note').textContent = interpretBenchmark(res);
   renderBenchmarkVerdict(res);
+  renderBenchmarkInterpretation(res);
   const v = $('bench-verdict');
   (v.hidden ? $('bench-note') : v).scrollIntoView({behavior:'smooth'});
 }
@@ -1803,24 +2026,33 @@ function closestStep(steps){
   }
   return best;
 }
-function interpretScreen(res, isA){
+function interpretScreen(res, suf){
+  const isA = suf === 'A', isB = suf === 'B', isS = suf === 'S';
+  if(res.unprocessable){
+    return `Unprocessable: ${res.gate_reason || 'document failed the validity gate'} — no conformal evidence was computed, so neither an alert nor a clear result may be issued. Refer to human review.`;
+  }
   const steps = res.steps || [];
-  const total = isA
-    ? (res.n_active ?? res.n_actions ?? steps.length)
-    : (res.route_length || steps.length);
+  const total = isS
+    ? (res.n_actions ?? steps.length)
+    : (isA ? (res.n_active ?? res.n_actions ?? steps.length) : (res.route_length || steps.length));
   if(res.alert){
     const hit = steps.find(s => s.alert);
     if(isA && hit) return `Alert: ${hit.detector}@${hit.budget}, p ${fmt(hit.p)} vs bound ${hit.threshold.toFixed(4)}. Stopped after ${steps.length} of ${total} actions.`;
-    if(!isA && hit) return `Alert at step ${hit.t} of ${total}: p ${fmt(hit.p)} vs bound ${res.alpha.toFixed(2)}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.`;
+    if(isB && hit) return `Alert at step ${hit.t} of ${total}: p ${fmt(hit.p)} vs bound ${res.alpha.toFixed(2)}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.`;
+    if(isS && hit) return `Simes alert at rank k = ${hit.t} of ${total}: p ${fmt(hit.p)} vs corrected bound ${hit.threshold.toFixed(4)} (α/H_K = ${(res.level || 0).toFixed(5)}). Every rank was evaluated.`;
   }
   const best = closestStep(steps);
   const where = best ? `${best.detector}@${best.budget}, p ${fmt(best.p)}` : 'no scored actions';
-  const bound = isA
-    ? (best ? best.threshold.toFixed(4) : res.alpha.toFixed(2))
-    : res.alpha.toFixed(2);
+  const bound = isB
+    ? res.alpha.toFixed(2)
+    : (best ? best.threshold.toFixed(4) : res.alpha.toFixed(2));
+  if(isS) return `No Simes crossing in ${steps.length} of ${total} ranks. Closest: ${where} vs bound ${bound}.`;
   if(isA) return `No crossing in ${steps.length} of ${total} actions. Closest: ${where} vs bound ${bound}.`;
   const fut = res.stopped_futility ? ' Futility rule stopped the route early.' : '';
-  return `No crossing in ${steps.length} of ${total} steps. Closest: ${where} vs bound ${bound}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.${fut}`;
+  const att = res.attested_at != null
+    ? ` Complete maximum attained at step ${res.attested_at}${res.attested_executed ? '' : ' (beyond the executed prefix)'}; complete Mπ = ${fmt(res.complete_max)}.`
+    : '';
+  return `No crossing in ${steps.length} of ${total} steps. Closest: ${where} vs bound ${bound}. Read ${res.tokens_inspected} of ${res.tokens_full} tokens.${fut}${att}`;
 }
 function alphaExceeds(n, k, alpha){
   const exp = n * alpha;
@@ -1893,22 +2125,38 @@ function humanRateFlags(row){
   return flags;
 }
 function renderScreenVerdict(res){
-  const A = res.A, B = res.B;
+  const A = res.A, B = res.B, S = res.S;
   const card = $('screen-verdict');
   if(!A || !B){ card.hidden = true; return; }
-  const aAlert = !!A.alert, bAlert = !!B.alert;
+
+  // Validity gate: scoring never ran, so no path may alert or acquit.
+  const un = [A, S, B].filter(p => p && p.unprocessable);
+  if(un.length){
+    $('sv-badge').textContent = 'needs human review';
+    $('sv-badge').className = 'verdict-badge referral';
+    $('sv-lead').textContent = `Unprocessable at α = ${res.alpha}: the document never reached the validity gate.`;
+    $('sv-list').innerHTML = [
+      vTick('info', `<b>${esc(un[0].gate_reason || 'Failed the validity gate')}.</b>`),
+      vTick('info', 'A, Simes, and B all return the explicit unprocessable outcome — no score, no rank, so neither <b>flag</b> nor <b>no alert</b> may be issued.'),
+      vTick('info', 'The gate is deterministic and pre-scoring: it never consumes α and never triggers on a scored document.'),
+    ].join('');
+    $('sv-action').innerHTML = '<span class="va-label">What to do</span>Read or revise the document yourself; the tool only scores text that reaches the word minimum.';
+    card.hidden = false;
+    return;
+  }
+  const aAlert = !!A.alert, bAlert = !!B.alert, sAlert = S ? !!S.alert : null;
   const aOk = !!A.resolution_ok, bOk = !!B.resolution_ok;
   const ticks = [];
   let badge, cls, lead, action;
   if(aAlert && bAlert){
     badge = 'flag for review'; cls = 'bad';
-    lead = `Both constructions alert at α = ${res.alpha}.`;
+    lead = `${S ? (sAlert ? 'All three inspection paths alert' : 'A and B alert; Simes does not') : 'Both constructions alert'} at α = ${res.alpha}.`;
     ticks.push(vTick('ok', '<b>A and B agree</b> — an action crossed its bound on both inspection paths.'));
     action = 'Flag the document for human review. An alert is a statistical departure from the human reference, not proof of AI authorship.';
   } else if(!aAlert && !bAlert){
     if(aOk && bOk){
       badge = 'no alert'; cls = 'good';
-      lead = `Both constructions clear at α = ${res.alpha}.`;
+      lead = `${S ? (sAlert ? 'A and B clear; Simes alerts' : 'All three inspection paths clear') : 'Both constructions clear'} at α = ${res.alpha}.`;
       ticks.push(vTick('ok', '<b>A and B agree</b> — no action crossed its bound.'));
       ticks.push(vTick('ok', `Both are <b>resolvable</b> at m = ${A.m}${A.n_active != null && A.n_active < A.n_actions ? ` (A: ${A.n_active} active actions, w = ${A.w})` : ''} (A needs ≥ ${A.m_required}, B needs ≥ ${B.m_required}).`));
       action = 'No flag at this α. Non-rejection does not certify human authorship — it means insufficient evidence to alert.';
@@ -1928,7 +2176,8 @@ function renderScreenVerdict(res){
     }
   } else {
     badge = 'mixed signal'; cls = 'mixed';
-    lead = aAlert ? 'Construction A alerts; Construction B does not.' : 'Construction B alerts; Construction A does not.';
+    lead = (aAlert ? 'Construction A alerts; Construction B does not.' : 'Construction B alerts; Construction A does not.')
+      + (S ? (sAlert ? ' Simes alerts.' : ' Simes clears.') : '');
     ticks.push(vTick('warn', '<b>A and B disagree</b> — the two decision rules read the document differently.'));
     if(!aOk) ticks.push(vTick('warn', `A cannot reject at this α (needs m ≥ ${A.m_required}, m = ${A.m}).`));
     if(!bOk) ticks.push(vTick('warn', `B cannot reject at this α (needs m ≥ ${B.m_required}, m = ${B.m}).`));
@@ -1948,6 +2197,28 @@ function renderScreenVerdict(res){
   }
   if(B.stopped_futility && !B.alert){
     ticks.push(vTick('info', 'B stopped early on the <b>futility rule</b> — route halted before full length, no crossing.'));
+  }
+  if(B.attested_at != null){
+    ticks.push(vTick('info', `B attestation <b>τ* = ${B.attested_at}</b>: the executed prefix first reached the complete M<sub>π</sub> there${B.attested_executed ? '' : ' (beyond the executed prefix, a diagnostic only)'}${B.complete_max != null ? ` · M<sub>π</sub> = ${fmt(B.complete_max)}` : ''}.`));
+  }
+  if(S){
+    const sOk = !!S.resolution_ok;
+    if(sAlert){
+      const hit = (S.steps || []).find(s => s.alert);
+      ticks.push(vTick('ok', `<b>Simes alerts</b> at rank k = ${hit ? hit.t : '?'}: p ${hit ? fmt(hit.p) : '?'} ≤ ${(hit ? hit.threshold : 0).toFixed(4)} (α/H<sub>K</sub> = ${(S.level || 0).toFixed(5)}, m ≥ ${S.m_required}).`));
+    } else if(sOk){
+      ticks.push(vTick('info', `<b>Simes clears</b> — all ${S.n_evaluated ?? (S.steps || []).length} ranks evaluated at level ${(S.level || 0).toFixed(5)}; resolvable (needs m ≥ ${S.m_required}).`));
+    } else {
+      ticks.push(vTick('warn', `<b>Simes cannot reject</b> at this α with m = ${S.m} (needs m ≥ ${S.m_required} after the H<sub>K</sub> correction) — clear under Simes is structurally unresolvable.`));
+    }
+    const anyAB = aAlert || bAlert;
+    if(sAlert && !anyAB){
+      ticks.push(vTick('warn', '<b>Simes alerts where A and B do not</b> — the ranked family reads the same score table differently; treat as a soft signal for review.'));
+    } else if(!sAlert && anyAB){
+      ticks.push(vTick('warn', '<b>Simes clears while A or B alerts</b> — the ranked family did not cross; treat the disagreement as a soft signal for review.'));
+    } else {
+      ticks.push(vTick('ok', '<b>Simes agrees with the A/B read</b> on this document.'));
+    }
   }
   const sl = res.slop;
   if(sl && sl.total > 0 && sl.density_per_100 >= 3){
@@ -2081,38 +2352,54 @@ function fmt(x){
   if(a >= 10) return x.toFixed(2);
   return x.toFixed(3);
 }
-function renderPanel(res, isA){
-  const suf = isA ? 'A' : 'B';
+function renderPanel(res, suf){
+  const isA = suf === 'A', isB = suf === 'B', isS = suf === 'S';
   const v = res.verdict, lv = LEVELS[v.level];
   $(`label-${suf}`).textContent = v.label;
   $(`dot-${suf}`).style.background = lv.color;
   $(`note-${suf}`).textContent = v.note;
-  $(`badge-${suf}`).textContent = res.alert ? 'alert' : 'no alert';
-  $(`badge-${suf}`).className = 'badge ' + (res.alert ? 'badge-alert' : 'badge-clear');
+  const bad = !!res.unprocessable;
+  $(`badge-${suf}`).textContent = bad ? 'unprocessable' : (res.alert ? 'alert' : 'no alert');
+  $(`badge-${suf}`).className = 'badge ' + (bad ? 'badge-warn' : (res.alert ? 'badge-alert' : 'badge-clear'));
 
   $(`meta-${suf}`).innerHTML =
     `<span class="meta-chip">α <b>${res.alpha}</b></span>` +
+    (isS && res.level != null
+      ? `<span class="meta-chip">level α/H<sub>K</sub> <b>${(+res.level).toFixed(5)}</b> · H<sub>K</sub> <b>${(res.harmonic || 0).toFixed(3)}</b></span>`
+      : '') +
     `<span class="meta-chip">m <b>${res.m}</b></span>` +
     `<span class="meta-chip">m required for rejection <b>${res.m_required}</b> · ${res.resolution_ok ? 'resolvable' : 'not resolvable'}</span>` +
     `<span class="meta-chip">tokens inspected <b>${res.tokens_inspected}</b> of ${res.tokens_full} · ${res.tokens_saved_pct}% saved</span>` +
     `<span class="meta-chip">actions executed <b>${res.actions_executed}</b></span>` +
     (isA ? `<span class="meta-chip">active <b>${res.n_active ?? res.steps.length}</b>/${res.n_actions} · w = ${res.w != null ? res.w.toFixed(4) : ('1/' + res.steps.length)}</span>` : '') +
-    (!isA && res.stopped_futility ? `<span class="meta-chip">futility stop <b>yes</b></span>` : '');
+    (isS ? `<span class="meta-chip">ranks evaluated <b>${res.n_evaluated ?? res.steps.length}</b>/${res.n_actions} · exhaustive</span>` : '') +
+    (isB && res.attested_at != null
+      ? `<span class="meta-chip">attested at step <b>${res.attested_at}</b>${res.attested_executed ? '' : ' (beyond executed prefix)'}</span>`
+      : '') +
+    (!isS && res.stopped_futility ? `<span class="meta-chip">futility stop <b>yes</b></span>` : '') +
+    (bad ? `<span class="meta-chip">gate <b>${esc(res.gate_reason || 'validity gate')}</b></span>` : '');
 
-  const rows = res.steps.map(s=>{
+  const firstHit = res.steps.findIndex(s => s.alert);
+  const rows = res.steps.map((s, idx)=>{
     let extra;
-    if(isA){
-      extra = '';
-    } else {
+    if(isB){
       extra = `<td>${fmt(s.partial_max)}</td>`;
+    } else {
+      extra = '';
     }
-    const bound = isA ? s.threshold.toFixed(4) : res.alpha.toFixed(2);
+    const bound = (isA || isS) ? s.threshold.toFixed(4) : res.alpha.toFixed(2);
+    // Simes decides at the first crossing (k*); later ranks are informational.
+    const decisive = isS ? (idx === firstHit) : s.alert;
     const badge = s.alert
-      ? '<span class="badge badge-step-alert">alert</span>'
-      : (!isA && s.t === res.steps[res.steps.length-1].t && res.stopped_futility)
-        ? '<span class="badge badge-warn">futility stop</span>'
-        : '<span class="badge badge-step-ok">ok</span>';
-    return `<tr class="${s.alert ? 'hit' : ''}">
+      ? (isS && !decisive
+          ? '<span class="badge badge-step-ok">beyond k*</span>'
+          : '<span class="badge badge-step-alert">alert</span>')
+      : (isB && s.attested)
+        ? '<span class="badge badge-warn">attested</span>'
+        : (isB && s.t === res.steps[res.steps.length-1].t && res.stopped_futility)
+          ? '<span class="badge badge-warn">futility stop</span>'
+          : '<span class="badge badge-step-ok">ok</span>';
+    return `<tr class="${decisive ? 'hit' : ''}">
       <td><b>${s.t}</b></td>
       <td>${s.detector}</td>
       <td>${s.budget}</td>
@@ -2129,13 +2416,15 @@ function renderPanel(res, isA){
   const full = res.tokens_full || 1;
   const num = $(`savings-num-${suf}`);
   num.textContent = saved + '%';
-  num.className = 'savings-num ' + (isA ? 'off' : (saved > 0 ? 'on' : 'off'));
+  num.className = 'savings-num ' + ((isA || isS) ? 'off' : (saved > 0 ? 'on' : 'off'));
   $(`savings-fill-${suf}`).style.width = Math.max(2, Math.min(100, insp / full * 100)) + '%';
   $(`savings-sub-${suf}`).textContent = isA
     ? `Inspected ${insp} of ${full} tokens (full-budget baseline for the savings comparison).`
-    : `Inspected ${insp} of ${full} tokens${saved > 0 ? `, ${saved}% fewer than the full route` : ''}.`;
+    : isS
+      ? `Simes ranks every registered action on one score table: ${insp} of ${full} tokens, ${res.n_evaluated ?? res.steps.length}/${res.n_actions} actions — no early exit by design.`
+      : `Inspected ${insp} of ${full} tokens${saved > 0 ? `, ${saved}% fewer than the full route` : ''}.`;
 
-  $(`foot-${suf}`).textContent = interpretScreen(res, isA);
+  $(`foot-${suf}`).textContent = interpretScreen(res, suf);
 }
 const MARK_COLORS = { opener:'#ff9500', filler:'#0071e3', jargon:'#af52de',
   structure:'#ff3b30', meta:'#5856d6', passive:'#8e8e93', phrase:'#0066cc', emdash:'#d6a800' };
@@ -2181,12 +2470,215 @@ function renderMarked(res){
 $('btn-marked').addEventListener('click', ()=>{ $('marked-card').hidden = false; $('marked-card').scrollIntoView({behavior:'smooth'}); });
 $('btn-marked-close').addEventListener('click', ()=>{ $('marked-card').hidden = true; });
 
+/* ── interpretation textbox: writing-style tabs ── */
+const INTERP_STYLES = {
+  apa:     {note:'APA 7th ed. — author–date in-text citation, sentence case, hedged evidential claims.'},
+  mla:     {note:'MLA 9th ed. — author–page in-text citation, present-tense analytical voice, works-cited entry.'},
+  chicago: {note:'Chicago 17th ed., notes & bibliography — numbered note plus a bibliography entry.'},
+  ieee:    {note:'IEEE — bracketed numeric citation, terse passive voice, numbered reference list.'}
+};
+
+function interpNum(x, style){
+  if(x == null || isNaN(+x)) return '—';
+  const s = (+x).toFixed(3);
+  return style === 'apa' ? s.replace(/^0\./, '.') : s;
+}
+function interpAlpha(x, style){
+  const s = String(x);
+  return style === 'apa' ? s.replace(/^0\./, '.') : s;
+}
+function interpClosest(steps){
+  if(!steps || !steps.length) return null;
+  return steps.slice().sort((a, b)=>(a.p / (a.threshold || 1)) - (b.p / (b.threshold || 1)))[0];
+}
+
+function interpFacts(res, style){
+  const N = x => interpNum(x, style);
+  const ALPHA = interpAlpha(res.alpha, style);
+  const words = res.file ? res.file.n_words
+    : (res.text ? res.text.trim().split(/\s+/).filter(Boolean).length : 0);
+  const meta = {
+    words, alpha: ALPHA, m: res.m,
+    model: MODEL_LABELS[STATE.model] || STATE.model,
+    corpus: STATE.corpus || 'realdet',
+    docName: res.file ? res.file.name : null
+  };
+  const a = res.A || {}, s = res.S || {}, b = res.B || {};
+  if(a.unprocessable) return {un:true, meta, words};
+  const aHit = a.steps ? (a.steps.find(x=>x.alert) || null) : null;
+  const aNear = aHit || interpClosest(a.steps);
+  const sHit = s.steps ? (s.steps.find(x=>x.alert) || null) : null;
+  const sNear = sHit || interpClosest(s.steps);
+  const bHit = b.steps ? (b.steps.find(x=>x.alert) || null) : null;
+  const bNear = bHit || interpClosest(b.steps);
+  const K = s.n_actions || a.n_actions || 'K';
+  const aCore = a.alert
+    ? `flagged the document at ${aNear.detector}@${aNear.budget}, p = ${N(aNear.p)}, below its adjusted bound ${N(aNear.threshold)}`
+    : `did not flag the document (closest p = ${N(aNear && aNear.p)} against bound ${N(aNear && aNear.threshold)})`;
+  const sCore = s.alert
+    ? `rejected at ordered rank k = ${sHit.t} of K = ${K}, p = ${N(sHit.p)} against the corrected bound ${N(sHit.threshold)} (level \u03b1/H_K = ${N(s.level)})`
+    : `rejected none of the ${K} ordered ranks (closest p = ${N(sNear && sNear.p)} against ${N(sNear && sNear.threshold)})`;
+  const bCore = b.alert
+    ? `flagged at route step ${bHit.t} of ${b.route_length || 5}, p = ${N(bHit.p)} against \u03b1 = ${ALPHA}`
+      + (b.attested_at != null ? `, with the complete-path maximum attested at step ${b.attested_at}${b.attested_executed ? '' : ' (beyond the executed prefix)'}` : '')
+    : `did not flag the route (closest p = ${N(bNear && bNear.p)} against \u03b1 = ${ALPHA})`
+      + (b.stopped_futility ? ', and the futility rule stopped the route early' : '');
+  const aSent = `Construction A ${aCore}`;
+  const sSent = `the Simes ranked test ${sCore}`;
+  const bSent = `Construction B ${bCore}`;
+  const results = `${aSent}; ${sSent}; and ${bSent}`;
+  let overall;
+  if(a.alert && s.alert && b.alert){
+    overall = 'the three inspection paths agree: the document departs from the human reference distribution at the nominal false-alert level, so it is flagged for review';
+  } else if(!a.alert && !s.alert && !b.alert){
+    overall = (s.resolution_ok === false)
+      ? `no path crossed its bound and this calibration set is too small to resolve a rejection (m = ${meta.m} against m required ${s.m_required ?? '—'}), so the honest output is "not yet resolvable" rather than a finding`
+      : 'no path crossed its bound, so at this calibration size the procedure reports insufficient evidence — a non-alert is not a positive finding of human authorship';
+  } else {
+    overall = 'the paths disagree, so the output is a soft signal that warrants human review rather than a hard call';
+  }
+  return {un:false, meta, aSent, sSent, bSent, results, overall, words,
+    resolvable: s.resolution_ok !== false, mRequired: s.m_required};
+}
+
+function buildInterpretation(res, style){
+  const F = interpFacts(res, style), m = F.meta;
+  const src = m.docName ? `the file ${m.docName}` : 'the pasted document';
+  const srcCap = src.charAt(0).toUpperCase() + src.slice(1);
+  const doc = m.docName ? `"${m.docName}"` : 'the submitted document';
+  if(F.un){
+    return {
+      apa: `Result. The submitted document did not clear the validity gate (${m.words} words; the procedure requires at least 32 words, so no conformal p-value was computed (Burnwatch, 2026)). The interface therefore reports an unprocessable outcome and routes the item to human review instead of an alert or a clear finding. Interpretation. The absence of evidence here reflects document length, not authorship; nothing about the author's use of AI can be inferred from this run. Reference. Burnwatch (2026). Project Burnwatch: Adaptive conformal screening of AI-generated text [Computer software]. Cite in text as (Burnwatch, 2026).`,
+      mla: `Result. Because ${doc} falls below the validity gate of 32 words, the Burnwatch conformal procedure (Burnwatch 1) computes no p-value, and the screen returns an unprocessable outcome rather than an alert or a clear finding. Interpretation. The screen shows that the text is too short to test, not that anything about its authorship has been established. Works cited. Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026. Cite in text as (Burnwatch 1).`,
+      chicago: `The submitted document (${m.words} words) falls below the 32-word validity gate required by the Burnwatch conformal screening procedure, so no conformal evidence was computed and the run returns an unprocessable outcome for human review rather than a finding.[1] Interpretation: the run is silent on authorship, because document length, not text quality, blocked the test. 1. Project Burnwatch, Adaptive Conformal Screening of AI-Generated Text (2026), validity gate of 32 words. Bibliography: Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026.`,
+      ieee: `[1] The document (${m.words} words) was screened using the Burnwatch conformal procedure [1]. The run returned an unprocessable outcome because the validity gate of 32 words was not met; consequently, no p-value was produced and the item was routed to human review. The result neither confirms nor denies AI authorship. [1] Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text, 2026.`
+    }[style];
+  }
+  const results = F.results;
+  const caution = 'Because the guarantee is marginal and level-conditional, an alert marks a statistical departure from the human reference distribution rather than proof of AI authorship, and a non-alert records insufficient evidence rather than confirmation of human authorship';
+  return {
+    apa: `Method. ${srcCap} was screened with the Project Burnwatch conformal procedure (Burnwatch, 2026) at \u03b1 = ${m.alpha}, using a calibration set of m = ${m.m} human reference documents (scoring model: ${m.model}; reference corpus: ${m.corpus}). Results. ${results}. Interpretation. Overall, ${F.overall}. ${caution}.${F.resolvable ? '' : ` The result is not resolvable at this calibration size; ${F.mRequired} documents would be required.`} Reference. Burnwatch (2026). Project Burnwatch: Adaptive conformal screening of AI-generated text [Computer software]. Cite in text as (Burnwatch, 2026).`,
+    mla: `Method and result. Running the Burnwatch conformal screening procedure (Burnwatch 1) on ${src} at \u03b1 = ${m.alpha} with a calibration set of ${m.m} documents (${m.model} scoring model, ${m.corpus} reference corpus), the analysis shows that ${results}. Interpretation. In short, ${F.overall}. ${caution}.${F.resolvable ? '' : ` The question is also unresolvable at this calibration size: ${F.mRequired} documents would be required.`} Works cited. Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026. Cite in text as (Burnwatch 1).`,
+    chicago: `${srcCap} was screened with the Burnwatch conformal procedure at \u03b1 = ${m.alpha} against ${m.m} calibration documents, with ${m.model} as the scoring model and ${m.corpus} as the reference corpus.[1] The procedure reports that ${results}. Taken together, ${F.overall}. ${caution}. 1. Project Burnwatch, Adaptive Conformal Screening of AI-Generated Text (2026), run parameters: \u03b1 = ${m.alpha}, m = ${m.m} (${m.words} words, ${m.model} on ${m.corpus}). Bibliography: Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026.`,
+    ieee: `[1] The document (${m.words} words) was screened with the Burnwatch conformal screening procedure [1] using \u03b1 = ${m.alpha} and a calibration set of m = ${m.m} documents, with ${m.model} as the scoring model and ${m.corpus} as the reference corpus. ${results}. The paths jointly indicate that ${F.overall}. The result is reported as a flag for review; it is not, by itself, evidence of AI authorship, and a non-alert is not evidence of human authorship. [1] Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text, 2026.`
+  }[style];
+}
+
+function buildBenchInterpretation(res, style){
+  const rows = res.rows || [];
+  const cells = rows.map(r=>{
+    const sep = r.ai_rate - r.human_rate;
+    return {
+      c: r.construction, a: interpAlpha(r.alpha, style), n: r.n,
+      h: r.human_alerts, ai: r.ai_alerts,
+      // point differences are not proportions: never strip the leading zero
+      sep: (sep * 100).toFixed(1), unres: r.resolution_ok === false, mreq: r.m_required,
+      over: alphaExceeds(r.n, r.human_alerts, r.alpha)
+    };
+  });
+  const results = cells.map(c=>{
+    const bits = [`Construction ${c.c} at \u03b1 = ${c.a} flagged ${c.h} of ${c.n} human documents and ${c.ai} of ${c.n} AI documents`];
+    bits.push(c.unres
+      ? `, unresolvable at m = ${res.m} (needs m \u2265 ${c.mreq})`
+      : (parseFloat(c.sep) < 0
+          ? `, ${Math.abs(parseFloat(c.sep)).toFixed(1)} points below the human rate`
+          : `, ${c.sep} points of separation`));
+    if(c.over) bits.push(', above the sampling bound for human documents');
+    return bits.join('');
+  }).join('; ');
+  const overCells = cells.filter(c=>c.over);
+  const overall = overCells.length
+    ? `human alert rates exceeded the sampling bound in ${overCells.length} of ${cells.length} cells, so this run does not validate the nominal \u03b1 budget`
+    : `human alert rates stayed inside the sampling bound in all ${cells.length} cells, so the AI rates may be read as empirical power for this corpus`;
+  const cross = res.matched === false
+    ? `Because calibration ran on ${res.calibration_corpus} while evaluation ran on ${res.corpus}, the human rates estimate \u03b1 plus distribution shift rather than \u03b1 alone; rerun with matching corpora for a validity check`
+    : `Because calibration and evaluation both draw on ${res.corpus}, the human rates are a direct validity check against nominal \u03b1`;
+  const bRow = rows.find(r=>r.construction === 'B');
+  const cost = bRow && bRow.mean_savings_pct != null
+    ? ` Construction B inspected ${bRow.mean_tokens_inspected} tokens per document on average, ${bRow.mean_savings_pct}% below the full route.`
+    : '';
+  const alphas = [...new Set(rows.map(r=>interpAlpha(r.alpha, style)))].join(', ');
+  const consts = [...new Set(rows.map(r=>r.construction))].join(' and ');
+  const m = {
+    corpus: res.corpus, cal: res.calibration_corpus || 'unknown', n: res.n, m: res.m,
+    alphas, consts, results, overall, cross, cost
+  };
+  const caveat = 'These figures are operating characteristics on this corpus and scoring model: they say how often the procedure flags documents in aggregate, not the probability that any particular document was written with AI, and a non-alert is never a certification of human authorship';
+  return {
+    apa: `Method. A benchmark run screened ${m.n} human-written and ${m.n} AI-written documents from the ${m.corpus} corpus (calibration corpus: ${m.cal}, m = ${m.m}) with Constructions ${m.consts} at \u03b1 = ${m.alphas} (Burnwatch, 2026). Results. ${m.results}. Overall, ${m.overall}.${m.cost} Interpretation. ${m.cross}. ${caveat}. Reference. Burnwatch (2026). Project Burnwatch: Adaptive conformal screening of AI-generated text [Computer software]. Cite in text as (Burnwatch, 2026).`,
+    mla: `Method and result. The benchmark screens ${m.n} human documents against ${m.n} AI documents drawn from the ${m.corpus} corpus (calibrated on ${m.cal}, m = ${m.m}) and reports Constructions ${m.consts} at \u03b1 = ${m.alphas} (Burnwatch 1). The run shows that ${m.results}. In short, ${m.overall}.${m.cost} Interpretation. ${m.cross}. ${caveat}. Works cited. Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026. Cite in text as (Burnwatch 1).`,
+    chicago: `A benchmark run compared ${m.n} human-written with ${m.n} AI-written documents from the ${m.corpus} corpus, calibrated on ${m.cal} at m = ${m.m}, under Constructions ${m.consts} at \u03b1 = ${m.alphas}; the benchmark screens the registered family and the complete path.[1] The procedure reports that ${m.results}. Taken together, ${m.overall}.${m.cost} Interpretation. ${m.cross}. ${caveat}. 1. Project Burnwatch, Adaptive Conformal Screening of AI-Generated Text (2026), benchmark on ${m.corpus}, m = ${m.m}. Bibliography: Burnwatch. Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text. 2026.`,
+    ieee: `[1] A benchmark of ${m.n} human-written and ${m.n} AI-written documents drawn from the ${m.corpus} corpus was run with the Burnwatch conformal screening procedure [1], calibrated on ${m.cal} with m = ${m.m}, using Constructions ${m.consts} at \u03b1 = ${m.alphas}. ${m.results}. Across the run, ${m.overall}.${m.cost} ${m.cross}. The reported rates are aggregate operating characteristics and are not, individually, evidence about any single document or author. [1] Project Burnwatch: Adaptive Conformal Screening of AI-Generated Text, 2026.`
+  }[style];
+}
+
+/* ── interpretation cards: one registry, any number of instances ── */
+const INTERP = {};
+function fillInterpret(inst){
+  if(inst.note) inst.note.textContent = INTERP_STYLES[inst.style].note;
+  if(!inst.last) return;
+  const cached = inst.cache[inst.style];
+  inst.box.value = (cached != null) ? cached : inst.build(inst.last, inst.style);
+}
+function setInterpretation(key, res){
+  const inst = INTERP[key];
+  if(!inst) return;
+  inst.last = res;
+  Object.keys(inst.cache).forEach(k=>delete inst.cache[k]);
+  fillInterpret(inst);
+  inst.card.hidden = false;
+}
+function renderInterpretation(res){ setInterpretation('screen', res); }
+function renderBenchmarkInterpretation(res){ setInterpretation('bench', res); }
+
+document.querySelectorAll('[data-interp]').forEach(card=>{
+  const inst = {
+    key: card.dataset.interp,
+    card,
+    style: 'apa',
+    cache: {},
+    last: null,
+    build: card.dataset.interp === 'bench' ? buildBenchInterpretation : buildInterpretation,
+    box: card.querySelector('.interpret-box'),
+    note: card.querySelector('.interpret-note'),
+    tabs: [...card.querySelectorAll('.itab')],
+    reset: card.querySelector('.btn-interpret-reset'),
+    copy: card.querySelector('.btn-interpret-copy')
+  };
+  INTERP[inst.key] = inst;
+  inst.tabs.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      inst.cache[inst.style] = inst.box.value;
+      inst.style = btn.dataset.style;
+      inst.tabs.forEach(b=>b.classList.toggle('active', b === btn));
+      fillInterpret(inst);
+    });
+  });
+  inst.box.addEventListener('input', ()=>{ inst.cache[inst.style] = inst.box.value; });
+  inst.reset.addEventListener('click', ()=>{ delete inst.cache[inst.style]; fillInterpret(inst); });
+  inst.copy.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(inst.box.value);
+    }catch(e){
+      inst.box.select();
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+    }
+    inst.copy.textContent = 'Copied';
+    setTimeout(()=>{ inst.copy.textContent = 'Copy'; }, 1400);
+  });
+  fillInterpret(inst);   // style note shows even before a run
+});
+
 function render(res){
-  renderPanel(res.A, true);
-  renderPanel(res.B, false);
+  if($('panel-S')) $('panel-S').hidden = !res.S;
+  renderPanel(res.A, 'A');
+  renderPanel(res.B, 'B');
+  if(res.S) renderPanel(res.S, 'S');
   renderSlop(res.slop);
   renderMarked(res);
   renderScreenVerdict(res);
+  renderInterpretation(res);
   const src = res.file;
   $('result-source').hidden = !src;
   if(src){
@@ -2295,34 +2787,43 @@ const HELP_ITEMS = [
     math:'bino_t = log p_perf + CE(observer ‖ performer); fast_d = Σ(LL − μ_ref)/√Σσ²_ref (upstream analytic).' },
   { sel:'.chip-grid[data-group="alpha"]', title:'False-alert budget α',
     process:'α is the accepted risk of flagging a human-written document. Stricter α needs more calibration documents.',
-    math:'P(any alert | null) ≤ α. A sizes its active subset from ⌊α(m+1)⌋; B uses one α on the path rank.' },
+    math:'P(any alert | null) ≤ α. A sizes its active subset from ⌊α(m+1)⌋; B uses one α on the path rank; Simes corrects α to α/H_K over all K ranks.' },
   { sel:'#btn-detect', title:'The screen action',
-    process:'Runs both constructions on the same scoring pass: one forward pass, both decision rules.',
-    math:'One precomputed prefix score table feeds Construction A and Construction B.' },
+    process:'Runs A, Simes, and B on the same scoring pass: one forward pass, three decision rules. Documents below the validity gate short-circuit to unprocessable.',
+    math:'One precomputed prefix score table feeds Construction A, the Simes ranking, and Construction B.' },
   { sel:'#table-A', title:'Construction A: registered family',
     process:'Every registered action carries its own error share. Default shares are resolution-aware: only the active equal-weight subset that can reject at the current m receives weight (route actions first). Any executed action crossing its bound alerts; the union bound protects the whole family.',
     math:'p_a = (1 + #{H_i ≥ S_a(X)}) / (m+1);  alert if p_a ≤ α·w_a;  k = ⌊α(m+1)⌋ active actions, w = 1/k.' },
   { sel:'#table-B', title:'Construction B: complete path',
-    process:'The frozen route is calibrated on its complete maxima; deployment follows a prefix and stops at the first crossing.',
-    math:'M_π(X) = max_t g_a(S_a(X));  alert if p_t^path ≤ α;  partial max ≤ complete max.' },
+    process:'The frozen route is calibrated on its complete maxima; deployment follows a prefix and stops at the first crossing. The panel also reports the attestation step τ* where the prefix first attains the complete maximum.',
+    math:'M_π(X) = max_t g_a(S_a(X));  alert if p_t^path ≤ α;  partial max ≤ complete max;  τ* = min{t : running max = M_π}.' },
+  { sel:'#table-S', title:'Simes rule: the ranked family',
+    process:'Every registered action is scored, the p-values are sorted, and the first ordered rank crossing the corrected bound alerts. Exhaustive: no early exit, so no token savings — and no score-dependent selection.',
+    math:'reject at min k : p_(k) ≤ α·k/(K·H_K);  H_K = Σ 1/i;  m ≥ ⌈H_K/α⌉ − 1.' },
   { sel:'#savings-num-B', title:'Token savings',
     process:'How much inspection Construction B avoided by stopping early instead of reading the full budget.',
     math:'saved% = (1 − inspected/full) × 100.' },
   { sel:'#slop-report', title:'Style markers',
     process:'Predictable AI phrasing from the stop-slop lexicon. A surface signal, never proof on its own.',
     math:'Hard patterns enter the registered family; soft signals are reported separately and never scored.' },
+  { sel:'#interpret-card', title:'Interpretation',
+    process:'A paste-ready read of the current run. Tabs switch the citation system (APA 7, MLA 9, Chicago, IEEE); the wording keeps each style\u2019s voice and in-text form. The box is editable per tab, and a fresh run regenerates all four drafts.',
+    math:'The text quotes the live \u03b1, m, p-values, thresholds, and \u03b1/H_K level exactly as the panels report them.' },
+  { sel:'#bench-interpret-card', title:'Benchmark interpretation',
+    process:'The same four writing styles, written up for a benchmark run: per-cell human and AI alert rates, separation, the validity reading, and B\u2019s token savings. Editable per tab; a new run regenerates the drafts.',
+    math:'Per cell: human alerts/n vs nominal \u03b1 (sampling bound via alphaExceeds), AI alerts/n, separation = AI rate \u2212 human rate.' },
   { sel:'#screen-verdict', title:'Result verdict',
-    process:'Plain-language read of both constructions: agreement, whether each can reject at this m, futility stops, and how close the run came to its bounds.',
-    math:'Resolvable iff m ≥ ⌈1/(α·w)⌉−1 (A) or m ≥ ⌈1/α⌉−1 (B); closest approach = min p/threshold (warn if ≤3×).' },
+    process:'Plain-language read of all three paths: agreement, whether each can reject at this m, the B attestation step, futility stops, and how close the run came to its bounds. A document below the validity gate shows a referral instead.',
+    math:'Resolvable iff m ≥ ⌈1/(α·w)⌉−1 (A), m ≥ ⌈1/α⌉−1 (B), or m ≥ ⌈H_K/α⌉−1 (Simes); closest approach = min p/threshold (warn if ≤3×).' },
   { sel:'#benchmark', title:'Benchmark',
-    process:'Aggregate alert rates over paired human/AI documents from the Binoculars or deck-recommended corpora.',
+    process:'Aggregate alert rates over paired human/AI documents from the Binoculars or deck-recommended corpora. It scores corpus documents from disk — the Screen text box is not involved, so no paste is required.',
     math:'Human rate ≈ α under the null (exchangeable docs); AI rate = empirical power.' },
   { sel:'#bench-verdict', title:'Benchmark verdict',
     process:'Aggregate checks: corpus match, structural resolution, human rates vs α, AI−human separation, and the secondary B-vs-A efficiency comparison on resolvable rows (study pass/fail is B vs fixed ll@1024).',
     math:'Matched human rate ≈ α; separation = AI − human; study primary: B vs fixed ll@1024 (cost ≤ 0.8, power LB > −0.02); secondary: cost_B/cost_A ≤ 0.8 with B−A power lower bound > −0.02.' },
   { sel:'#counts-table', title:'Calibration counts',
-    process:'How many calibration documents a rejection requires on the rank grid. Construction A sizes its active equal-weight subset so the requirement holds at the current m when feasible. Useful power may need more.',
-    math:'A: k = ⌊α(m+1)⌋ active, m ≥ ⌈1/(α/k)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1.' },
+    process:'How many calibration documents a rejection requires on the rank grid, for A, B, and Simes, plus the zero-error audit and reference-set sizes. Construction A sizes its active equal-weight subset so the requirement holds at the current m when feasible. Useful power may need more.',
+    math:'A: k = ⌊α(m+1)⌋ active, m ≥ ⌈1/(α/k)⌉ − 1 · B: m ≥ ⌈1/α⌉ − 1 · Simes: m ≥ ⌈H_K/α⌉ − 1 · audit N₀ ≥ 59/299/2,995 · reference 10/α · uniformity 18,445.' },
   { sel:'#audit-n', title:'Independent audit',
     process:'Fixed-sample audit of the deployment false-alert rate with zero observed errors.',
     math:'U = 1 − γ^(1/N₀); at γ=0.05, N₀ ≥ 2,995 gives U < 0.001.' },
@@ -2425,7 +2926,7 @@ const TOUR_STEPS = [
     body:'Paste at least 20 words of plain text. One scoring pass reads prefixes of the document under the chosen model, no preparation needed.' },
   { tab:'screen', target:'#model-chips',
     title:'Choose the scoring engine',
-    body:'Likelihood scores come from a GPT-2-class model. Frontier-model text (Gemini, ChatGPT) separates better with a stronger model, or with the contrasting detector, next. First use of a model builds its calibration (1–4 minutes); cached models are marked.' },
+    body:'Likelihood scores come from a GPT-2-class model. Frontier-model text (Gemini, ChatGPT) separates better with a stronger model, or with the contrasting detector, next. First use of a model builds its calibration (5–10 minutes at m = 4,000); cached models are marked.' },
   { tab:'screen', target:'.chip-grid[data-group="bino"]',
     title:'Choose the detector family',
     body:'Base detectors read likelihood, rank, and log-rank. The two toggles add the contrasting model (performer vs observer) and Fast-DetectGPT curvature. Both constructions work with any enabled combination.' },
@@ -2434,19 +2935,19 @@ const TOUR_STEPS = [
     body:'α is the risk you accept of flagging human-written text: P(any alert under the null) ≤ α. A stricter α needs more calibration documents: the note below the chips tells you whether your m is enough.' },
   { tab:'screen', target:'#btn-detect',
     title:'Your turn: run a screening',
-    body:'Click “Screen: both constructions”. Two verdict panels will appear below, and we will walk you through them. (Prefer to skip? Press Next.)',
+    body:'Click “Screen: A · Simes · B”. Three verdict panels will appear below, and we will walk you through them. (Prefer to skip? Press Next.)',
     checkpoint:'#btn-detect' },
   { tab:'screen', target:'#results',
     title:'Two constructions, one document',
     body:'Left: Construction A: the registered family, every action carrying its own share of α. Right: Construction B: the route with early stopping. Look at B’s chips: tokens inspected and % saved: the cost you avoided. Below the panels, the style-marker card lists stop-slop lexicon hits (a surface signal, not proof).',
     waitVisible:true,
-    fallbackBody:'The two verdict panels appear here after a run; if you skipped the hands-on step, press Back and click “Screen: both constructions”. Look for B’s tokens-inspected chips (the savings) and the style-marker card beneath the panels.' },
-  { tab:'screen', target:'#benchmark',
+    fallbackBody:'The three verdict panels appear here after a run; if you skipped the hands-on step, press Back and click “Screen: A · Simes · B”. Look for B’s tokens-inspected chips (the savings) and the style-marker card beneath the panels.' },
+  { tab:'bench', target:'#benchmark',
     title:'Verify it yourself',
     body:'The benchmark runs both constructions over paired human/AI documents: Binoculars corpora, or the deck-recommended RAID, DetectRL-X, and RealDet. Human alert rates should sit near α (control), AI rates show power. The study pass/fail criterion is B vs fixed ll@1024 (≥20% cost, paired power LB > −0.02); the panel also shows the secondary B-vs-A efficiency check.' },
   { target:'.tab-bar',
     title:'Where to go deeper',
-    body:'How it Works holds the calibration-counts table and the audit calculator. FAQ answers the practical questions, including why some AI text is not flagged. You are ready to screen.',
+    body:'Benchmark runs the paired human/AI evaluation on the corpus. Method holds the calibration-counts table and the audit calculator. FAQ answers the practical questions, including why some AI text is not flagged. You are ready to screen.',
     last:true },
 ];
 let tourIndex = -1;
@@ -2614,8 +3115,8 @@ function drawBars(f, bars){
   });
 }
 
-// fixed calibration used by all simulations (m = 260, standard normal)
-const SIM_CAL = Array.from({length: 260}, () => randn()).sort((a,b)=>a-b);
+// fixed calibration used by all simulations (m = 4,000, standard normal)
+const SIM_CAL = Array.from({length: 4000}, () => randn()).sort((a,b)=>a-b);
 const SIM_ALPHA = 0.05;
 
 // 1 · distribution shift
@@ -2737,6 +3238,7 @@ const motionGroups = [
   ['#tab-how .how-table', [0]],
   ['#tab-how .calc-row', [0]],
   ['#tab-how .limits', [0]],
+  ['#tab-bench .param-group', [0, .06, .12]],
 ];
 motionGroups.forEach(([selector, delays])=>{
   document.querySelectorAll(selector).forEach((el, index)=>{
@@ -2745,7 +3247,7 @@ motionGroups.forEach(([selector, delays])=>{
   });
 });
 
-const motionItems = document.querySelectorAll('#tab-how .anim-rise');
+const motionItems = document.querySelectorAll('.anim-rise');
 if('IntersectionObserver' in window){
   const motionObserver = new IntersectionObserver(entries=>{
     entries.forEach(entry=>{

@@ -139,6 +139,15 @@ def ensure_bundle(model, corpus, binoculars, fastdetect, build=True):
 
 
 def verdict_for(res):
+    if res.get("unprocessable"):
+        return {
+            "label": "Unprocessable: needs human review",
+            "level": "referral",
+            "note": "The document failed the validity gate before scoring, so no "
+                    "conformal evidence exists. Neither an alert nor an acquittal: "
+                    "refer it to human review. Scoring proceeds only for documents "
+                    "that pass the gate, at the full level-α budget.",
+        }
     if res["alert"]:
         return {
             "label": "Alert: flag for review",
@@ -211,9 +220,11 @@ def run_file_screen(job):
         job["detail"] = f"Scoring {job['file_name']} ({n_words} words)…"
 
     slop_report = C.slop.scan(text)
-    pre = C.action_scores_for(text)
+    pre = C.action_scores_for(text) if C.validity_gate(text)[0] else None
     ra = C.screen_a(text, b, job["alpha"], pre=pre)
     ra["verdict"] = verdict_for(ra)
+    rs = C.screen_simes(text, b, job["alpha"], pre=pre)
+    rs["verdict"] = verdict_for(rs)
     rb = C.screen_b(text, b, job["alpha"], pre=pre)
     rb["verdict"] = verdict_for(rb)
     res = {
@@ -221,6 +232,7 @@ def run_file_screen(job):
         "alpha": job["alpha"],
         "m": b.m,
         "A": ra,
+        "S": rs,
         "B": rb,
         "slop": slop_report,
         "text": text,
@@ -251,20 +263,27 @@ def run_screen(job):
     else:
         job["detail"] = "Scoring document under the generative model…"
     slop_report = C.slop.scan(job["text"])
+    # never spend a forward pass on a document the validity gate rejects
+    pre = C.action_scores_for(job["text"]) if C.validity_gate(job["text"])[0] else None
     if job["construction"] == "both":
-        pre = C.action_scores_for(job["text"])
         ra = C.screen_a(job["text"], b, job["alpha"], pre=pre)
         ra["verdict"] = verdict_for(ra)
+        rs = C.screen_simes(job["text"], b, job["alpha"], pre=pre)
+        rs["verdict"] = verdict_for(rs)
         rb = C.screen_b(job["text"], b, job["alpha"], pre=pre)
         rb["verdict"] = verdict_for(rb)
-        res = {"construction": "both", "alpha": job["alpha"], "m": b.m, "A": ra, "B": rb,
-               "slop": slop_report}
+        res = {"construction": "both", "alpha": job["alpha"], "m": b.m, "A": ra,
+               "S": rs, "B": rb, "slop": slop_report}
     elif job["construction"] == "A":
-        res = C.screen_a(job["text"], b, job["alpha"])
+        res = C.screen_a(job["text"], b, job["alpha"], pre=pre)
+        res["verdict"] = verdict_for(res)
+        res["slop"] = slop_report
+    elif job["construction"] == "Simes":
+        res = C.screen_simes(job["text"], b, job["alpha"], pre=pre)
         res["verdict"] = verdict_for(res)
         res["slop"] = slop_report
     else:
-        res = C.screen_b(job["text"], b, job["alpha"])
+        res = C.screen_b(job["text"], b, job["alpha"], pre=pre)
         res["verdict"] = verdict_for(res)
         res["slop"] = slop_report
     if job["construction"] == "both":
@@ -381,6 +400,7 @@ def api_status():
     cal["corpora"] = data.ALL_CORPORA
     _active = bundles.get((C.BASE_MODEL, CFG["corpus"], C.USE_BINOCULARS, C.USE_FASTDETECT))
     cal["fingerprint"] = _active.fingerprint if _active else None
+    cal["diagnostics"] = _active.diagnostics() if _active else None
     cal["corpora_ready"] = {
         c: os.path.exists(C.cache_path(C.BASE_MODEL.replace("/", "_"), CFG["m"], CFG["n_dev"],
                                        c, C.USE_BINOCULARS, C.USE_FASTDETECT))
@@ -419,8 +439,8 @@ def api_detect():
         return jsonify({"error": f"Text too long: maximum {MAX_TEXT_WORDS} words (currently {n_words})."}), 400
 
     construction = payload.get("construction") or "both"
-    if construction not in ("A", "B", "both"):
-        return jsonify({"error": "construction must be 'A', 'B', or 'both'."}), 400
+    if construction not in ("A", "B", "Simes", "both"):
+        return jsonify({"error": "construction must be 'A', 'B', 'Simes', or 'both'."}), 400
     try:
         alpha = _parse_alpha(payload.get("alpha", 0.05))
     except ValueError as exc:
@@ -605,7 +625,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Project Burnwatch — adaptive AI-text screening web interface")
     parser.add_argument("--port", type=int, default=5010)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--m", type=int, default=260, help="calibration documents")
+    parser.add_argument("--m", type=int, default=4000,
+                        help="calibration documents; 4,000 fits every count in the "
+                             "counts table (Simes at α=0.001 needs 3,775 at K=24)")
     parser.add_argument("--n-dev", type=int, default=50, help="development documents")
     parser.add_argument("--base-model", default="gpt2", help="initial scoring model")
     parser.add_argument("--corpus", default="realdet",

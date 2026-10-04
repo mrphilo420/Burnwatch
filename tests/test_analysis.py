@@ -464,3 +464,266 @@ class EvaluateCellsFixedTests(unittest.TestCase):
         self.assertEqual(rec["ai_subgroup"], "llama")
         self.assertIn(0.5, rec["alerts"]["A"])
         self.assertIn(0.5, rec["alerts"]["B"])
+
+
+def _route_pre(values):
+    """Action scores whose route entries are given in DEFAULT_ROUTE order."""
+    pre = {a: -10.0 for a in conformal._all_actions()}
+    for (det, b), v in zip(conformal.DEFAULT_ROUTE, values):
+        pre[(det, b)] = v
+    return pre
+
+
+class SimesScreenTests(unittest.TestCase):
+    def test_corrected_region_rejects_at_ordered_rank(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        res = conformal.screen_simes(text, bundle, 0.05, pre=_all_above_pre())
+        self.assertEqual(res["construction"], "Simes")
+        self.assertTrue(res["alert"])
+        # every rank is 1/(m+1) = 0.01 here, so the crossing is the first k
+        # with level*k/K >= 0.01 (level = alpha/H_16)
+        self.assertEqual(res["reject_rank"], 11)
+        self.assertEqual(len(res["steps"]), bundle.n_actions)
+        ps = [s["p"] for s in res["steps"]]
+        self.assertEqual(ps, sorted(ps))
+        thr = [s["threshold"] for s in res["steps"]]
+        self.assertEqual(thr, sorted(thr))
+        self.assertTrue(all(s["threshold"] == res["level"] * s["t"] / bundle.n_actions
+                            for s in res["steps"]))
+
+    def test_exhaustive_execution_never_early_exits(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        res = conformal.screen_simes(text, bundle, 0.05, pre=_all_above_pre())
+        self.assertEqual(res["actions_executed"], bundle.n_actions)
+        self.assertEqual(res["n_evaluated"], bundle.n_actions)
+        self.assertEqual(res["tokens_saved_pct"], 0)
+
+    def test_no_alert_when_every_rank_is_one(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        res = conformal.screen_simes(text, bundle, 0.05,
+                                     pre=_all_above_pre(value=-10.0))
+        self.assertFalse(res["alert"])
+        self.assertIsNone(res["reject_rank"])
+        self.assertEqual(len(res["steps"]), bundle.n_actions)
+
+    def test_uncorrected_region_fires_earlier_but_is_not_the_guarantee(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        corrected = conformal.screen_simes(text, bundle, 0.05, pre=_all_above_pre())
+        uncorrected = conformal.screen_simes(text, bundle, 0.05,
+                                             pre=_all_above_pre(), corrected=False)
+        self.assertTrue(uncorrected["alert"])
+        self.assertEqual(uncorrected["reject_rank"], 4)
+        self.assertLess(uncorrected["reject_rank"], corrected["reject_rank"])
+        # under exchangeability alone only alpha/H_K carries the guarantee
+        self.assertAlmostEqual(corrected["level"], 0.05 / conformal.harmonic(16))
+        self.assertAlmostEqual(uncorrected["level"], 0.05)
+        self.assertEqual(uncorrected["m_required"], conformal.resolution_b(0, 0.05))
+
+    def test_dispatch_supports_simes(self):
+        bundle = _synthetic_bundle(m=99)
+        res = conformal._screen_construction(
+            "Simes", "word " * 200, bundle, 0.05, _all_above_pre())
+        self.assertEqual(res["construction"], "Simes")
+        self.assertTrue(res["alert"])
+
+
+class AttestationTests(unittest.TestCase):
+    def test_attestation_is_first_step_attaining_complete_max(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        # route g-values peak at step 3; alpha too small to alert
+        res = conformal.screen_b(text, bundle, 0.001,
+                                 pre=_route_pre([0.5, 0.6, 3.0, 1.0, 2.0]))
+        self.assertFalse(res["alert"])
+        self.assertEqual(len(res["steps"]), len(conformal.DEFAULT_ROUTE))
+        self.assertEqual(res["attested_at"], 3)
+        self.assertTrue(res["attested_executed"])
+        self.assertAlmostEqual(res["complete_max"], 3.0)
+        self.assertEqual([s["t"] for s in res["steps"] if s["attested"]], [3])
+
+    def test_attestation_may_lie_beyond_an_early_alert(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        # alerts on the first step, but the complete maximum is attained at 4
+        res = conformal.screen_b(text, bundle, 0.01,
+                                 pre=_route_pre([0.5, 0.6, 0.7, 4.0, 2.0]))
+        self.assertTrue(res["alert"])
+        self.assertEqual(len(res["steps"]), 1)
+        self.assertEqual(res["attested_at"], 4)
+        self.assertFalse(res["attested_executed"])
+        self.assertAlmostEqual(res["complete_max"], 4.0)
+
+    def test_empty_route_has_no_attestation(self):
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        res = conformal.screen_b(text, bundle, 0.05,
+                                 pre=_route_pre([-np.inf] * 5))
+        self.assertFalse(res["alert"])
+        self.assertIsNone(res["attested_at"])
+        self.assertIsNone(res["complete_max"])
+
+
+class CalibrationDiagnosticTests(unittest.TestCase):
+    def _replay(self, rows, futility_thr=-1.0):
+        nA = len(conformal._all_actions())
+        idx = {a: i for i, a in enumerate(conformal._all_actions())}
+        scores = np.full((len(rows), nA), -np.inf)
+        for i, row in enumerate(rows):
+            for (det, b), v in zip(conformal.DEFAULT_ROUTE, row):
+                scores[i, idx[(det, b)]] = v
+        g_mu = np.zeros(nA)
+        g_sigma = np.ones(nA)
+        return conformal._route_replay(scores, conformal.DEFAULT_ROUTE, g_mu,
+                                       g_sigma, futility_thr, idx)
+
+    def test_replay_reports_maxima_and_attestation(self):
+        maxima, g_values, n_exec, attested = self._replay([
+            [-np.inf] * 5,                       # empty route
+            [1.0, 2.0, 3.0, 0.5, 0.5],           # attains at step 3
+            [1.0, 1.0, 1.0, 1.0, 1.0],           # tie from step 1
+            [5.0, 0.1, 0.1, 0.1, 0.1],           # attains at step 1
+        ])
+        self.assertTrue(np.isneginf(maxima[0]))
+        self.assertEqual(attested[0], -1)
+        self.assertEqual(n_exec[0], 1)          # empty route futility-stops at step 1
+        self.assertAlmostEqual(maxima[1], 3.0)
+        self.assertEqual(attested[1], 2)
+        self.assertTrue(np.all(n_exec[1:] == 5))
+
+    def test_max_share_sums_to_route_coverage(self):
+        maxima, g_values, n_exec, attested = self._replay([
+            [-np.inf] * 5,
+            [1.0, 2.0, 3.0, 0.5, 0.5],
+            [1.0, 1.0, 1.0, 1.0, 1.0],
+            [5.0, 0.1, 0.1, 0.1, 0.1],
+        ])
+        share = conformal.route_max_share(g_values, maxima, n_exec, attested)
+        self.assertEqual(len(share), len(conformal.DEFAULT_ROUTE))
+        # 4 routes: one empty, one single-step attainment, one five-way tie
+        self.assertAlmostEqual(share[2], 0.50)   # step 3 attains once + the tie
+        self.assertAlmostEqual(share[0], 0.50)   # step 1 attains once + the tie
+        self.assertAlmostEqual(share[1], 0.25)   # tie only
+        self.assertAlmostEqual(share[3], 0.25)
+        self.assertAlmostEqual(share[4], 0.25)
+        self.assertAlmostEqual(float(share.sum()), 1.75)
+
+    def test_bundle_diagnostics_expose_empty_routes_and_bottleneck(self):
+        nA = len(conformal._all_actions())
+        max_share = np.zeros(len(conformal.DEFAULT_ROUTE))
+        max_share[2] = 0.8
+        max_share[4] = 0.2
+        bundle = conformal.CalibrationBundle(
+            cal_scores=np.zeros((99, nA)), cal_maxima=np.zeros(99),
+            g_mu=np.zeros(nA), g_sigma=np.ones(nA), futility_thr=-1.0,
+            n_dev=10, m=99, max_share=max_share, empty_route_rate=0.05,
+            failure_rate=0.01)
+        diag = bundle.diagnostics()
+        self.assertEqual(diag["max_share_top"]["action"], "rank@512")
+        self.assertAlmostEqual(diag["max_share_top"]["share"], 0.8)
+        self.assertAlmostEqual(diag["empty_route_rate"], 0.05)
+        self.assertAlmostEqual(diag["failure_rate"], 0.01)
+        self.assertEqual(len(diag["route"]), len(conformal.DEFAULT_ROUTE))
+
+    def test_legacy_bundle_reports_no_diagnostics(self):
+        self.assertIsNone(_synthetic_bundle(m=99).diagnostics())
+
+
+class ValidityGateTests(unittest.TestCase):
+    def test_gate_threshold_is_min_tokens_words(self):
+        ok, reason = conformal.validity_gate("word " * (conformal.MIN_TOKENS - 1))
+        self.assertFalse(ok)
+        self.assertIn("validity gate", reason)
+        ok, reason = conformal.validity_gate("word " * conformal.MIN_TOKENS)
+        self.assertTrue(ok)
+        self.assertIsNone(reason)
+
+    def test_short_document_is_unprocessable_on_every_path(self):
+        bundle = _synthetic_bundle(m=99)
+        text = "word " * 25
+        for res in (conformal.screen_a(text, bundle, 0.05),
+                    conformal.screen_b(text, bundle, 0.05),
+                    conformal.screen_simes(text, bundle, 0.05)):
+            self.assertTrue(res["unprocessable"])
+            self.assertFalse(res["alert"])
+            self.assertEqual(res["steps"], [])
+            self.assertEqual(res["actions_executed"], 0)
+            self.assertEqual(res["tokens_inspected"], 0)
+            self.assertIn("validity gate", res["gate_reason"])
+
+    def test_verdict_refers_unprocessable_documents_to_review(self):
+        import app as web_app
+        bundle = _synthetic_bundle(m=99)
+        res = conformal.screen_a("word " * 25, bundle, 0.05)
+        verdict = web_app.verdict_for(res)
+        self.assertEqual(verdict["level"], "referral")
+        self.assertIn("Unprocessable", verdict["label"])
+
+    def test_verdict_unchanged_for_scoring_documents(self):
+        import app as web_app
+        bundle = _synthetic_bundle(m=99)
+        text = " ".join(["word"] * 200)
+        cleared = web_app.verdict_for(
+            conformal.screen_a(text, bundle, 0.05, pre=_all_above_pre(value=-10.0)))
+        self.assertEqual(cleared["level"], "clear")
+        alerted = web_app.verdict_for(
+            conformal.screen_a(text, bundle, 0.05, pre=_all_above_pre()))
+        self.assertEqual(alerted["level"], "alert")
+
+
+class BundlePersistenceTests(unittest.TestCase):
+    def _bundle_with_diagnostics(self):
+        nA = len(conformal._all_actions())
+        share = np.zeros(len(conformal.DEFAULT_ROUTE))
+        share[1] = 0.6
+        share[3] = 0.4
+        return conformal.CalibrationBundle(
+            cal_scores=np.zeros((99, nA)), cal_maxima=np.zeros(99),
+            g_mu=np.zeros(nA), g_sigma=np.ones(nA), futility_thr=-1.0,
+            n_dev=10, m=99, corpus="imdb",
+            max_share=share, empty_route_rate=0.02, failure_rate=0.03)
+
+    def test_diagnostics_survive_a_save_load_roundtrip(self):
+        import os
+        import tempfile
+        bundle = self._bundle_with_diagnostics()
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "cal.npz")
+            bundle.save(path)
+            loaded = conformal.CalibrationBundle.load(path)
+        diag = loaded.diagnostics()
+        self.assertIsNotNone(diag)
+        self.assertAlmostEqual(diag["empty_route_rate"], 0.02)
+        self.assertAlmostEqual(diag["failure_rate"], 0.03)
+        self.assertEqual(diag["max_share_top"]["action"], "ll@256")
+        self.assertAlmostEqual(diag["max_share_top"]["share"], 0.6)
+        self.assertAlmostEqual(diag["max_share_sum"], 1.0)
+        self.assertTrue(loaded.selfcheck())
+
+    def test_legacy_cache_without_diagnostics_still_loads(self):
+        import os
+        import tempfile
+        bundle = self._bundle_with_diagnostics()
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "legacy.npz")
+            np.savez_compressed(
+                path,
+                cal_scores=bundle.cal_scores, cal_maxima=bundle.cal_maxima,
+                g_mu=bundle.g_mu, g_sigma=bundle.g_sigma,
+                futility_thr=np.array([bundle.futility_thr]),
+                n_dev=np.array([bundle.n_dev]), m=np.array([bundle.m]),
+            )
+            loaded = conformal.CalibrationBundle.load(path)
+        # the max share is lost with the legacy cache, but the two rates are
+        # recomputed from the stored maxima and scores
+        self.assertIsNone(loaded.max_share)
+        diag = loaded.diagnostics()
+        self.assertIsNotNone(diag)
+        self.assertIsNone(diag["max_share"])
+        self.assertIsNone(diag["max_share_top"])
+        self.assertAlmostEqual(diag["empty_route_rate"], 0.0)
+        self.assertAlmostEqual(diag["failure_rate"], 0.0)
+        self.assertTrue(loaded.selfcheck())

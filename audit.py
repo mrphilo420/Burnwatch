@@ -54,12 +54,12 @@ def _summary(result):
     """Keep decision evidence while deliberately omitting document content."""
     allowed = {
         "construction", "alpha", "m", "model", "corpus", "matched", "calibration_corpus",
-        "verdict", "elapsed_seconds", "file", "sampling", "A", "B", "rows", "paired",
+        "verdict", "elapsed_seconds", "file", "sampling", "A", "S", "B", "rows", "paired",
     }
     out = {key: _jsonable(value) for key, value in result.items() if key in allowed}
     if "file" in out:
         out["file"].pop("bytes", None)
-    for key in ("A", "B"):
+    for key in ("A", "S", "B"):
         if isinstance(out.get(key), dict):
             out[key] = {k: _jsonable(v) for k, v in out[key].items() if k != "text"}
     return out

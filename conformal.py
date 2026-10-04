@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Project Burnwatch — adaptive within-document AI-text screening.
 
-Construction A and B.
+Construction A, the Simes refinement, and Construction B.
 
-Implements the two finite-sample constructions of the reverse-aligned
-manuscript under paper/, per their proofs:
+Implements the finite-sample constructions of the theory manuscript
+(Conformal_v2.pdf), per their proofs:
 
   * per-document detectors over token budgets (likelihood, rank, log-rank,
     entropy) under a GPT-2 class generative model; larger score = more
@@ -13,11 +13,21 @@ manuscript under paper/, per their proofs:
     convention): p = (1 + #{calibration scores >= test score}) / (m + 1);
   * Construction A: a registered action family with fixed error allocations
     and a union bound over the executed subset (Theorem A);
+  * the Simes refinement of the registered family: the ordered rank vector
+    against alpha*k/K, calibrated at alpha/H_K under exchangeability alone
+    (Proposition 4.8), evaluated exhaustively (no score-dependent selection);
   * Construction B: a development-fixed route generator whose complete-path
     maximum is calibrated; deployment follows a prefix with arbitrary early
-    termination (Theorem B);
-  * Corollary calibration-resolution counts, the oracle/audit-style bounds
-    (Clopper-Pearson zero-event audit, repeated-look inflation).
+    termination (Theorem B), reporting the attestation step
+    tau* = min{t <= T_pi : M_{pi,t} = M_pi};
+  * the validity gate V(X): documents below MIN_TOKENS words are never
+    scored and return the explicit unprocessable outcome (a referral,
+    neither an alert nor an acquittal);
+  * calibration diagnostics to report beside the counts: the max share of
+    each route action, the empty-route rate, and the per-action failure
+    rate; plus the Table 2 data requirements (rank-grid minima, development
+    reference-set sizes, zero-event audit size) and the repeated-look
+    inflation bound.
 
 No e-process is constructed and no conformal rank products are multiplied.
 """
@@ -44,6 +54,7 @@ import slop
 DETECTORS = ["ll", "rank", "logrank", "slop"]      # larger score = more suspicious
 BUDGETS = [128, 256, 512, 1024]                    # token budgets b_k (deck route)
 MIN_TOKENS = 32                                    # below this a document "fails"
+BENCHMARK_HEADROOM = 1000                          # held-out docs requested past m + n_dev
 DEFAULT_ROUTE = [                                  # development-fixed route for B (deck: 128→256→512→1024)
     ("ll", 128), ("ll", 256), ("rank", 512), ("logrank", 1024), ("slop", 1024),
 ]
@@ -319,7 +330,15 @@ def standardize_g(dev_scores):
 # ---------------------------------------------------------------------------
 
 def fetch_human_docs(n, corpus="imdb", progress=None):
-    """Human calibration documents from the requested corpus."""
+    """Eligible human documents from the requested corpus.
+
+    Returns the whole pool (deduplicated, deterministic order) rather than
+    exactly ``n`` documents, so callers can report how many were available
+    and refuse to build on a short pool. ``n + BENCHMARK_HEADROOM`` is asked
+    of the data layer, leaving held-out documents for a benchmark run on the
+    same corpus (benchmark offsets past m + n_dev documents).
+    """
+    need = n + BENCHMARK_HEADROOM
     if corpus == "imdb":
         import datasets
         print(f"[conformal] loading stanfordnlp/imdb (human calibration documents, n={n})...",
@@ -332,17 +351,43 @@ def fetch_human_docs(n, corpus="imdb", progress=None):
         docs = []
         for c in data.CORPORA:
             docs += data.get_human_docs(c, "falcon7", CACHE_DIR, progress=progress)
+        if len(set(docs)) < need:
+            # the pooled generator splits alone are short: top up the corpora
+            # that carry a supplement dataset
+            docs = []
+            for c in data.CORPORA:
+                docs += data.get_human_docs(c, "falcon7", CACHE_DIR,
+                                            progress=progress, need=need)
     elif corpus in data.RECOMMENDED:
         print(f"[conformal] loading {corpus} human documents (n={n})...",
               file=sys.stderr, flush=True)
-        docs = data.get_human_docs(corpus, "falcon7", CACHE_DIR, progress=progress)
+        docs = data.get_human_docs(corpus, "falcon7", CACHE_DIR, progress=progress,
+                                   need=need)
     else:
         print(f"[conformal] loading Binoculars corpus {corpus} (n={n})...",
               file=sys.stderr, flush=True)
-        docs = data.get_human_docs(corpus, "falcon7", CACHE_DIR)
+        docs = data.get_human_docs(corpus, "falcon7", CACHE_DIR, need=need)
     docs = list(dict.fromkeys(docs))  # dedupe, deterministic
     print(f"[conformal] {len(docs)} human documents available", file=sys.stderr, flush=True)
-    return docs[:n]
+    return docs
+
+
+def short_pool_error(available, needed, m, n_dev):
+    """Actionable message when a calibration corpus cannot serve m + n_dev."""
+    nA = len(active_detectors()) * len(BUDGETS)
+    fits_all = resolution_simes(0.001, nA)   # binding count: α = 0.001, corrected Simes
+    pools = data.human_pool_sizes(CACHE_DIR)
+    enough = sorted((c for c in pools if pools[c] >= needed), key=lambda c: -pools[c])
+    parts = [f"corpus {CORPUS!r} has {available:,} eligible human documents; "
+             f"need {needed:,} = m {m:,} + n_dev {n_dev:,}."]
+    if m >= fits_all:
+        parts.append(f"Every calibration count fits only at m >= {fits_all:,} for the "
+                     f"current family (K = {nA}), so this pool cannot serve m = {m:,}.")
+    parts.append("Cached corpora large enough: "
+                 + (", ".join(f"{c} ({pools[c]:,})" for c in enough) or "none") + ".")
+    parts.append(f"Pick one of those, or lower --m to at most {max(0, available - n_dev):,} "
+                 f"(the counts table then marks every unmet count with ✗).")
+    return " ".join(parts)
 
 
 def score_docs(docs, progress=None):
@@ -367,22 +412,64 @@ def _route_actions(route):
     return [(det, b) for det, b in route]
 
 
-def _route_stop_maxima(scores, route, g_mu, g_sigma, futility_thr, action_index):
-    """M_pi(H_i): max over the executed prefix of the route, with alert-based
-    stopping disabled and the development-fixed futility rule retained."""
+def _route_replay(scores, route, g_mu, g_sigma, futility_thr, action_index):
+    """Replay the development-fixed route with alert-based stopping disabled
+    and the development-fixed futility rule retained: the calibration-side
+    object M_pi(H_i).
+
+    Returns (maxima, g_values, n_exec, attested): the complete-path maxima,
+    the (m, T) standardized score table with -inf beyond the futility stop,
+    the number of route steps executed per document, and the 0-based index of
+    the first step attaining the maximum (-1 when M_pi = -inf, the empty
+    route)."""
     n = scores.shape[0]
+    n_route = len(route)
+    g_values = np.full((n, n_route), -np.inf)
     maxima = np.full(n, -np.inf)
     running = np.full(n, -np.inf)
     active = np.ones(n, dtype=bool)
-    for det, b in route:
+    n_exec = np.zeros(n, dtype=int)
+    for t, (det, b) in enumerate(route):
         col = action_index[(det, b)]
         g = (scores[:, col] - g_mu[col]) / g_sigma[col]
+        g = np.where(active, g, -np.inf)
+        g_values[:, t] = g
         running = np.where(active, np.maximum(running, g), running)
+        n_exec = np.where(active, t + 1, n_exec)
         stop = active & (running < futility_thr)
         maxima = np.where(stop, running, maxima)
         active = active & ~stop
     maxima = np.where(active, running, maxima)
-    return maxima
+    attested = np.full(n, -1, dtype=int)
+    for i in range(n):
+        if np.isneginf(maxima[i]) or n_exec[i] == 0:
+            continue
+        hit = np.nonzero(g_values[i, :n_exec[i]] == maxima[i])[0]
+        attested[i] = int(hit[0]) if len(hit) else int(n_exec[i] - 1)
+    return maxima, g_values, n_exec, attested
+
+
+def _route_stop_maxima(scores, route, g_mu, g_sigma, futility_thr, action_index):
+    """M_pi(H_i): max over the executed prefix of the route, with alert-based
+    stopping disabled and the development-fixed futility rule retained."""
+    return _route_replay(scores, route, g_mu, g_sigma, futility_thr, action_index)[0]
+
+
+def route_max_share(g_values, maxima, n_exec, attested):
+    """Max share: the fraction of routes on which each route action attains
+    M_pi (a share near one identifies the action bottlenecking the maximum).
+    The denominator is every route, so empty routes credit no action; ties
+    credit every attaining action."""
+    share = np.zeros(g_values.shape[1])
+    for i, att in enumerate(attested):
+        if att < 0 or n_exec[i] == 0:
+            continue
+        attain = np.nonzero(g_values[i, :n_exec[i]] == maxima[i])[0]
+        share[attain] += 1.0
+    n = len(maxima)
+    if n:
+        share /= float(n)
+    return share
 
 
 def build_calibration(m, n_dev, progress=None):
@@ -392,8 +479,8 @@ def build_calibration(m, n_dev, progress=None):
     n_total = m + n_dev
     docs = fetch_human_docs(n_total, CORPUS, progress=progress)
     if len(docs) < n_total:
-        raise RuntimeError(f"only {len(docs)} human documents available, need {n_total}")
-    dev_docs, cal_docs = docs[:n_dev], docs[n_dev:]
+        raise RuntimeError(short_pool_error(len(docs), n_total, m, n_dev))
+    dev_docs, cal_docs = docs[:n_dev], docs[n_dev:n_total]
     print(f"[conformal] scoring {n_dev} development documents...", file=sys.stderr, flush=True)
     dev_scores = score_docs(dev_docs, progress)
     print(f"[conformal] scoring {m} calibration documents...", file=sys.stderr, flush=True)
@@ -412,18 +499,28 @@ def build_calibration(m, n_dev, progress=None):
     dev_full = running
     futility_thr = float(np.quantile(dev_full, FUTILITY_QUANTILE))
 
-    cal_maxima = _route_stop_maxima(cal_scores, DEFAULT_ROUTE, g_mu, g_sigma,
-                                    futility_thr, action_index)
+    cal_maxima, cal_g, cal_n_exec, cal_attested = _route_replay(
+        cal_scores, DEFAULT_ROUTE, g_mu, g_sigma, futility_thr, action_index)
+
+    # Diagnostics the manuscript asks to report beside the calibration counts:
+    # the max share (how often each route action supplies M_pi), the
+    # empty-route rate, and the per-action failure rate on calibration.
+    max_share = route_max_share(cal_g, cal_maxima, cal_n_exec, cal_attested)
+    empty_route_rate = float(np.mean(np.isneginf(cal_maxima))) if len(cal_maxima) else 0.0
+    failure_rate = float(np.mean(np.isneginf(cal_scores))) if cal_scores.size else 0.0
 
     bundle = CalibrationBundle(
         cal_scores=cal_scores, cal_maxima=cal_maxima,
         g_mu=g_mu, g_sigma=g_sigma, futility_thr=futility_thr,
-        n_dev=n_dev, m=m, corpus=CORPUS)
+        n_dev=n_dev, m=m, corpus=CORPUS,
+        max_share=max_share, empty_route_rate=empty_route_rate,
+        failure_rate=failure_rate)
     return bundle
 
 
 class CalibrationBundle:
-    def __init__(self, cal_scores, cal_maxima, g_mu, g_sigma, futility_thr, n_dev, m, corpus=None):
+    def __init__(self, cal_scores, cal_maxima, g_mu, g_sigma, futility_thr, n_dev, m,
+                 corpus=None, max_share=None, empty_route_rate=None, failure_rate=None):
         self.cal_scores = cal_scores          # (m, nA)
         self.cal_maxima = cal_maxima          # (m,)
         self.g_mu = g_mu                      # (nA,)
@@ -432,12 +529,43 @@ class CalibrationBundle:
         self.n_dev = n_dev
         self.m = m
         self.corpus = corpus                  # human calibration population
+        # calibration diagnostics (None on legacy caches that predate them)
+        self.max_share = None if max_share is None else np.asarray(max_share, dtype=float)
+        self.empty_route_rate = (None if empty_route_rate is None
+                                 else float(empty_route_rate))
+        self.failure_rate = None if failure_rate is None else float(failure_rate)
         self.fingerprint = config_fingerprint()
         self.action_index = {a: i for i, a in enumerate(_all_actions())}
 
     @property
     def n_actions(self):
         return self.cal_scores.shape[1]
+
+    def diagnostics(self):
+        """Calibration diagnostics reported beside the counts: the max share
+        of each route action (a share near one identifies the bottleneck
+        supplying M_pi), the empty-route rate (frequent empties degenerate
+        the path rank to one), and the per-action failure rate (an
+        exchangeability monitor against deployment). Legacy caches carry no
+        max share but still expose the two rates computed from the stored
+        maxima and scores; a freshly built bundle carries all three."""
+        if (self.max_share is None and self.empty_route_rate is None
+                and self.failure_rate is None):
+            return None
+        shares = ({f"{det}@{b}": round(float(v), 6)
+                   for (det, b), v in zip(DEFAULT_ROUTE, self.max_share)}
+                  if self.max_share is not None else {})
+        top = max(shares.items(), key=lambda kv: kv[1]) if shares else (None, None)
+        return {
+            "m": self.m,
+            "route": [f"{det}@{b}" for det, b in DEFAULT_ROUTE],
+            "max_share": shares or None,
+            "max_share_top": {"action": top[0], "share": top[1]} if shares else None,
+            "max_share_sum": (round(float(sum(shares.values())), 6)
+                              if shares else None),
+            "empty_route_rate": self.empty_route_rate,
+            "failure_rate": self.failure_rate,
+        }
 
     def selfcheck(self):
         """Recompute the complete-path maxima from the stored action scores
@@ -459,6 +587,12 @@ class CalibrationBundle:
             g_mu=self.g_mu, g_sigma=self.g_sigma,
             futility_thr=np.array([self.futility_thr]),
             n_dev=np.array([self.n_dev]), m=np.array([self.m]),
+            max_share=(np.asarray(self.max_share, dtype=float)
+                       if self.max_share is not None else np.array([])),
+            empty_route_rate=np.array([-1.0 if self.empty_route_rate is None
+                                       else self.empty_route_rate]),
+            failure_rate=np.array([-1.0 if self.failure_rate is None
+                                   else self.failure_rate]),
         )
         meta = {"base_model": BASE_MODEL, "corpus": CORPUS,
                 "detectors": active_detectors(), "budgets": BUDGETS,
@@ -480,11 +614,32 @@ class CalibrationBundle:
                 corpus = json.load(f).get("corpus")
         except (OSError, ValueError):
             corpus = None
+
+        def _opt_scalar(name):
+            # legacy caches predate the calibration diagnostics
+            if name not in d.files or d[name].size == 0:
+                return None
+            value = float(d[name][0])
+            return None if value < 0 else value
+
+        max_share = None
+        if "max_share" in d.files and d["max_share"].size:
+            max_share = d["max_share"]
+        empty_route_rate = _opt_scalar("empty_route_rate")
+        failure_rate = _opt_scalar("failure_rate")
+        cal_maxima = d["cal_maxima"]
+        cal_scores = d["cal_scores"]
+        if empty_route_rate is None:
+            empty_route_rate = float(np.mean(np.isneginf(cal_maxima)))
+        if failure_rate is None:
+            failure_rate = float(np.mean(np.isneginf(cal_scores)))
         return cls(
-            cal_scores=d["cal_scores"], cal_maxima=d["cal_maxima"],
+            cal_scores=cal_scores, cal_maxima=cal_maxima,
             g_mu=d["g_mu"], g_sigma=d["g_sigma"],
             futility_thr=float(d["futility_thr"][0]),
-            n_dev=int(d["n_dev"][0]), m=int(d["m"][0]), corpus=corpus)
+            n_dev=int(d["n_dev"][0]), m=int(d["m"][0]), corpus=corpus,
+            max_share=max_share, empty_route_rate=empty_route_rate,
+            failure_rate=failure_rate)
 
 
 # ---------------------------------------------------------------------------
@@ -503,6 +658,44 @@ def resolution_b(m, alpha):
     return math.ceil(1.0 / alpha) - 1
 
 
+def harmonic(k):
+    """H_k = sum_{i=1}^{k} 1/i (the H_K of Proposition 4.8)."""
+    k = int(k)
+    if k <= 0:
+        return 0.0
+    return math.fsum(1.0 / i for i in range(1, k + 1))
+
+
+def simes_level(alpha, k_actions, corrected=True):
+    """Level of the Simes region: alpha under independence (or PRDS),
+    alpha/H_K under exchangeability alone (Proposition 4.8(ii))."""
+    return alpha / harmonic(k_actions) if corrected else alpha
+
+
+def simes_threshold(alpha, k_actions, rank, corrected=True):
+    """Threshold of the Simes region at ordered rank k: level * k / K."""
+    return simes_level(alpha, k_actions, corrected) * rank / int(k_actions)
+
+
+def resolution_simes(alpha, k_actions, corrected=True):
+    """Proposition 4.8(iii): with perfectly dependent ranks the whole region
+    collapses to one threshold (alpha, or alpha/H_K when corrected), so
+    rejection needs m >= ceil(1/level) - 1. At K=12, alpha=0.01 these are
+    99 and 310, against 1,199 for equal Bonferroni weights."""
+    return math.ceil(1.0 / simes_level(alpha, k_actions, corrected)) - 1
+
+
+def simes_first_viable_step(m, alpha, k_actions, corrected=True):
+    """Smallest ordered rank k whose Simes threshold reaches the grid floor
+    1/(m+1), i.e. the first step that can ever fire; None when the region is
+    empty at this m (the manuscript's 'first viable step' accounting)."""
+    floor = 1.0 / (m + 1.0)
+    for k in range(1, int(k_actions) + 1):
+        if simes_threshold(alpha, k_actions, k, corrected) >= floor:
+            return k
+    return None
+
+
 def max_equal_actions(m, alpha, n_actions):
     """Largest k <= n_actions such that equal weights 1/k over k actions are
     resolvable at (m, alpha): need m >= ceil(k/alpha) - 1, i.e. k <= alpha*(m+1)."""
@@ -515,7 +708,7 @@ def default_a_weights(m, alpha, actions=None):
     """Resolution-aware default error allocations for Construction A.
 
     Equal weights over the full registered family are often infeasible: with
-    n=16 and m=260, alpha=0.05 needs m>=319. Concentrate the budget on the
+    n=16, alpha=0.05 needs m>=319. Concentrate the budget on the
     largest equal-weight active subset that the rank grid can actually reject
     (k = floor(alpha*(m+1))), so A fulfills Corollary A at the current m.
     Remaining registered actions keep w=0 and can never alert.
@@ -584,14 +777,67 @@ def paired_difference_ci(a_alerts, b_alerts):
     return {"n": n, "diff": diff, "se": se, "lower_95": diff - 1.644854 * se}
 
 
+def audit_zero_events(alpha, gamma=0.05):
+    """Table 2, row 6 (zero-event audit): the smallest N0 with
+    N0 > log(gamma)/log(1-alpha), so that zero false alerts in N0 independent
+    human documents push the one-sided (1-gamma) Clopper-Pearson limit below
+    alpha. Yields 59 / 299 / 2,995 at gamma=0.05."""
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0, 1)")
+    if not 0 < gamma < 1:
+        raise ValueError("gamma must be in (0, 1)")
+    return math.floor(math.log(gamma) / math.log(1.0 - alpha)) + 1
+
+
+def reference_tail_size(alpha):
+    """Table 2, row 4: development reference set behind the tail-rank
+    transform, on the order of 10/alpha points beyond the alpha tail
+    (200 / 1,000 / 10,000 at alpha = 0.05 / 0.01 / 0.001)."""
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0, 1)")
+    return math.ceil(10.0 / alpha)
+
+
+def reference_uniformity_size(eps=0.01, eta=0.05):
+    """Table 2, row 5: DKW uniformity size ceil(log(2/eta)/(2 eps^2)) =
+    18,445 at eps=0.01, eta=0.05."""
+    if not 0 < eps < 1 or not 0 < eta < 1:
+        raise ValueError("eps and eta must be in (0, 1)")
+    return math.ceil(math.log(2.0 / eta) / (2.0 * eps * eps))
+
+
+def table2_requirements(k_actions, alphas=(0.05, 0.01, 0.001), gamma=0.05,
+                        eps=0.01, eta=0.05):
+    """The manuscript's data-requirements table, evaluated for the current
+    registered family size K and the fixed audit/uniformity constants."""
+    return {
+        "k": int(k_actions),
+        "alphas": list(alphas),
+        "calibration_a": [{"alpha": a, "m": math.ceil(k_actions / a) - 1} for a in alphas],
+        "calibration_b": [{"alpha": a, "m": resolution_b(0, a)} for a in alphas],
+        "calibration_simes": [{"alpha": a, "m": resolution_simes(a, k_actions)}
+                              for a in alphas],
+        "reference_tail": [{"alpha": a, "n_dev": reference_tail_size(a)} for a in alphas],
+        "reference_uniformity": {"n_dev": reference_uniformity_size(eps, eta),
+                                 "eps": eps, "eta": eta},
+        "audit_zero_events": [{"alpha": a, "n0": audit_zero_events(a, gamma)}
+                              for a in alphas],
+        "gamma": gamma,
+    }
+
+
 def resolution_table(m):
-    """Deck slide 'Calibration counts': A (resolution-aware active subset)
-    vs B at nominal alpha levels, given current m."""
+    """Rank-grid data requirements given current m: Construction A
+    (resolution-aware active subset), Construction B (one path rank), the
+    Simes refinement at alpha/H_K, plus the Table 2 reference-set and
+    zero-event audit sizes for the current registered family."""
     nA = len(active_detectors()) * len(BUDGETS)
     rows = []
     for alpha in (0.05, 0.01, 0.001):
         plan = a_weight_plan(m, alpha, nA)
         rb = resolution_b(m, alpha)
+        rs = resolution_simes(alpha, nA, corrected=True)
+        rsu = resolution_simes(alpha, nA, corrected=False)
         rows.append({
             "alpha": alpha,
             "a_m_req": plan["m_required"],
@@ -601,8 +847,65 @@ def resolution_table(m):
             "a_n_registered": nA,
             "b_m_req": rb,
             "b_ok": m >= rb,
+            "simes_m_req": rs,
+            "simes_ok": m >= rs,
+            "simes_uncorr_m_req": rsu,
+            "simes_uncorr_ok": m >= rsu,
+            "simes_first_step": simes_first_viable_step(m, alpha, nA, corrected=True),
         })
-    return {"m": m, "n_actions": nA, "rows": rows}
+    return {"m": m, "n_actions": nA, "harmonic": harmonic(nA),
+            "rows": rows, "table2": table2_requirements(nA)}
+
+
+def validity_gate(text):
+    """Deterministic pre-scoring predicate V(X): a document must carry at
+    least MIN_TOKENS words to be scored at all. Documents failing it are
+    routed to the explicit 'unprocessable' outcome — neither an alert nor an
+    acquittal, but a referral to human review — and scoring proceeds only
+    for documents that pass, at the full level-alpha budget (the manuscript's
+    validity-gate repair, applied as a two-valued stratum label)."""
+    n = len(text.split()) if text else 0
+    if n < MIN_TOKENS:
+        return False, (f"validity gate: {n} words is below the {MIN_TOKENS}-word "
+                       "minimum for scoring")
+    return True, None
+
+
+def _unprocessable_result(construction, alpha, bundle, n_tokens, reason):
+    """Result for a document that never reached scoring: no conformal evidence
+    exists, so nothing may alert and nothing may acquit."""
+    if construction == "B":
+        m_req = resolution_b(bundle.m, alpha)
+        extra = {"route_length": len(DEFAULT_ROUTE), "stopped_futility": False,
+                 "attested_at": None, "attested_executed": False,
+                 "complete_max": None}
+    elif construction == "Simes":
+        m_req = resolution_simes(alpha, bundle.n_actions)
+        extra = {"corrected": True, "harmonic": harmonic(bundle.n_actions),
+                 "level": simes_level(alpha, bundle.n_actions),
+                 "first_viable_step": simes_first_viable_step(bundle.m, alpha,
+                                                              bundle.n_actions),
+                 "reject_rank": None, "n_evaluated": 0}
+    else:
+        m_req = a_weight_plan(bundle.m, alpha, bundle.n_actions)["m_required"]
+        extra = {"n_active": 0, "w": 0.0}
+    return {
+        "construction": construction,
+        "alpha": alpha,
+        "m": bundle.m,
+        "m_required": m_req,
+        "resolution_ok": bundle.m >= m_req,
+        "alert": False,
+        "unprocessable": True,
+        "gate_reason": reason,
+        "steps": [],
+        "tokens_inspected": 0,
+        "tokens_full": min(max(BUDGETS), n_tokens),
+        "tokens_saved_pct": 100,
+        "actions_executed": 0,
+        "n_actions": bundle.n_actions,
+        **extra,
+    }
 
 
 def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
@@ -617,6 +920,10 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
     Zero-weight registered actions are not executed (threshold 0 is
     unreachable; running them would only inflate cost metrics).
     """
+    n_tok = len(text.split())
+    ok, reason = validity_gate(text)
+    if not ok:
+        return _unprocessable_result("A", alpha, bundle, n_tok, reason)
     if actions is None:
         actions = _all_actions()
     if weights is None:
@@ -640,14 +947,13 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
             "alert": False,
             "steps": [],
             "tokens_inspected": 0,
-            "tokens_full": min(max(BUDGETS), len(text.split())),
+            "tokens_full": min(max(BUDGETS), n_tok),
             "tokens_saved_pct": 100,
             "actions_executed": 0,
             "n_actions": bundle.n_actions,
             "n_active": 0,
             "w": 0.0,
         }
-    n_tok = len(text.split())
     if pre is None:
         pre = action_scores_for(text)
     cal = bundle.cal_scores
@@ -695,9 +1001,43 @@ def screen_a(text, bundle, alpha, actions=None, pre=None, weights=None):
     }
 
 
+def _complete_path_trace(pre, bundle):
+    """Replay the development-fixed route with alert stopping disabled and the
+    futility rule retained: returns (trace, complete_max, attested_at).
+
+    trace[t-1] is the running maximum M_{pi,t} after step t; the replay stops
+    where the futility rule stops it, so trace[-1] = M_pi. The attestation
+    step tau* = min{t <= T_pi : M_{pi,t} = M_pi} is the first step attaining
+    the complete maximum (None for an empty route, M_pi = -inf)."""
+    trace = []
+    running = -np.inf
+    for det, b in DEFAULT_ROUTE:
+        s = pre[(det, b)]
+        if np.isneginf(s):
+            g = -np.inf
+        else:
+            col = bundle.action_index[(det, b)]
+            g = (s - bundle.g_mu[col]) / bundle.g_sigma[col]
+        running = max(running, g)
+        trace.append(running)
+        if running < bundle.futility_thr:
+            break
+    complete_max = trace[-1] if trace else -np.inf
+    attested_at = None
+    if not np.isneginf(complete_max):
+        attested_at = next((t for t, v in enumerate(trace, 1) if v == complete_max), None)
+    return trace, complete_max, attested_at
+
+
 def screen_b(text, bundle, alpha, pre=None):
-    """Construction B: complete-path calibration, early stopping along route."""
+    """Construction B: complete-path calibration, early stopping along route.
+
+    Also reports the attestation step tau* (diagnostic only: it needs the
+    complete route, which the decision itself never waits for)."""
     n_tok = len(text.split())
+    ok, reason = validity_gate(text)
+    if not ok:
+        return _unprocessable_result("B", alpha, bundle, n_tok, reason)
     if pre is None:
         pre = action_scores_for(text)
     cal = bundle.cal_scores
@@ -733,6 +1073,10 @@ def screen_b(text, bundle, alpha, pre=None):
         if running < bundle.futility_thr:
             stopped_futility = True
             break
+    _trace, complete_max, attested_at = _complete_path_trace(pre, bundle)
+    attested_executed = attested_at is not None and attested_at <= len(steps)
+    for step in steps:
+        step["attested"] = attested_at is not None and step["t"] == attested_at
     return {
         "construction": "B",
         "alpha": alpha,
@@ -741,12 +1085,87 @@ def screen_b(text, bundle, alpha, pre=None):
         "resolution_ok": bundle.m >= resolution_b(bundle.m, alpha),
         "alert": alert,
         "stopped_futility": stopped_futility,
+        "attested_at": attested_at,
+        "attested_executed": bool(attested_executed),
+        "complete_max": None if np.isneginf(complete_max) else float(complete_max),
         "steps": steps,
         "tokens_inspected": min(steps[-1]["budget"], n_tok) if steps else 0,
         "tokens_full": min(max(BUDGETS), n_tok),
         "tokens_saved_pct": round(100 * (1 - min(steps[-1]["budget"], n_tok) / max(1, min(max(BUDGETS), n_tok)))),
         "actions_executed": len(steps),
         "route_length": len(DEFAULT_ROUTE),
+        "n_actions": bundle.n_actions,
+    }
+
+
+def screen_simes(text, bundle, alpha, pre=None, corrected=True):
+    """Simes refinement of the registered family (Proposition 4.8).
+
+    The statistic needs the whole ordered rank vector, so every registered
+    action is evaluated — no score-dependent selection: reject at ordered
+    rank k when p_(k) <= alpha*k/K. ``corrected=True`` (the deployed default)
+    uses the Benjamini--Yekutieli calibration alpha/H_K, the only variant the
+    exchangeability assumption alone supports; the uncorrected region is
+    justified under independence or PRDS and is reported for comparison.
+    Full computation, no early exit: the resolution requirement sits between
+    1/alpha and H_K/alpha, against K/alpha for equal Bonferroni weights."""
+    n_tok = len(text.split())
+    ok, reason = validity_gate(text)
+    if not ok:
+        return _unprocessable_result("Simes", alpha, bundle, n_tok, reason)
+    if pre is None:
+        pre = action_scores_for(text)
+    cal = bundle.cal_scores
+    actions = _all_actions()
+    k_actions = len(actions)
+    level = simes_level(alpha, k_actions, corrected)
+
+    entries = []
+    for det, b in actions:
+        col = bundle.action_index[(det, b)]
+        s = pre[(det, b)]
+        p = 1.0 if np.isneginf(s) else conformal_p(cal[:, col], s)
+        entries.append({"detector": det, "budget": b,
+                        "score": None if np.isneginf(s) else float(s), "p": p})
+    # p_(1) <= ... <= p_(K); the sort is stable, so ties keep registered order
+    entries.sort(key=lambda e: e["p"])
+
+    steps = []
+    reject_rank = None
+    for k, e in enumerate(entries, 1):
+        threshold = level * k / k_actions
+        hit = e["p"] <= threshold
+        if hit and reject_rank is None:
+            reject_rank = k
+        steps.append({
+            "t": k,
+            "detector": e["detector"],
+            "budget": e["budget"],
+            "score": e["score"],
+            "p": e["p"],
+            "threshold": threshold,
+            "alert": bool(hit),
+        })
+    m_req = resolution_simes(alpha, k_actions, corrected)
+    return {
+        "construction": "Simes",
+        "alpha": alpha,
+        "m": bundle.m,
+        "m_required": m_req,
+        "resolution_ok": bundle.m >= m_req,
+        "corrected": bool(corrected),
+        "harmonic": harmonic(k_actions),
+        "level": level,
+        "reject_rank": reject_rank,
+        "first_viable_step": simes_first_viable_step(bundle.m, alpha, k_actions,
+                                                     corrected),
+        "alert": reject_rank is not None,
+        "steps": steps,
+        "tokens_inspected": min(max(BUDGETS), n_tok),
+        "tokens_full": min(max(BUDGETS), n_tok),
+        "tokens_saved_pct": 0,
+        "actions_executed": len(actions),
+        "n_evaluated": len(actions),
         "n_actions": bundle.n_actions,
     }
 
@@ -823,11 +1242,13 @@ FIXED_ACTION = ("ll", 1024)
 def _screen_construction(c, doc, bundle, alpha, pre):
     """Dispatch one construction, including the fixed single-action
     comparator (ll@1024 at full weight): the matched-error baseline for
-    the preregistered efficiency comparison."""
+    the preregistered efficiency comparison, and the Simes refinement."""
     if c == "A":
         return screen_a(doc, bundle, alpha, pre=pre)
     if c == "B":
         return screen_b(doc, bundle, alpha, pre=pre)
+    if c in ("Simes", "S"):
+        return screen_simes(doc, bundle, alpha, pre=pre)
     if c == "fixed":
         return screen_a(doc, bundle, alpha, pre=pre,
                         actions=[FIXED_ACTION], weights={FIXED_ACTION: 1.0})
@@ -878,6 +1299,9 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
                         full_steps = len(DEFAULT_ROUTE)
                     elif c == "fixed":
                         full_steps = 1
+                    elif c in ("Simes", "S"):
+                        # Simes evaluates the whole ordered vector: no early exit
+                        full_steps = bundle.n_actions
                     else:
                         # A: early = stopped before finishing the active set.
                         # k=0 => 0 < 0 is false (structural, not early).
@@ -903,6 +1327,8 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
     def _m_required(c, a):
         if c == "B":
             return resolution_b(bundle.m, a)
+        if c in ("Simes", "S"):
+            return resolution_simes(a, bundle.n_actions)
         if c == "fixed":
             return resolution_a(bundle.m, a, 1.0)
         plan = plans[a]
@@ -951,23 +1377,47 @@ def evaluate_cells(bundle, humans, ais, constructions, alphas, progress=None, sc
     return rows, paired, detail_out
 
 
+def _binoc_consumed(name, total):
+    """How many documents of ``name`` a binoc-all calibration already used.
+
+    The binoc-all pool concatenates the corpora in ``data.CORPORA`` order and
+    calibration takes its first ``total`` documents, so this counts the
+    documents of ``name`` inside that prefix.
+    """
+    before = 0
+    for corpus in data.CORPORA:
+        pool = data.get_human_docs(corpus, "falcon7", CACHE_DIR)
+        if corpus == name:
+            return min(max(0, total - before), len(pool))
+        before += len(pool)
+        if before >= total:
+            return 0
+    return 0
+
+
 def benchmark(bundle, n, corpus, alphas=(0.01, 0.05, 0.1),
               constructions=("A", "B"), progress=None):
     """Evaluate empirical alert rates on human vs AI-generated documents.
-    Documents overlapping the calibration corpus are skipped."""
-    def sample(corpus_name):
-        offset = (bundle.m + bundle.n_dev) if corpus_name == CORPUS else 0
-        return (data.get_human_docs(corpus_name, "falcon7", CACHE_DIR, progress=progress)[offset:offset + n],
-                data.get_ai_docs(corpus_name, "falcon7", CACHE_DIR, progress=progress)[offset:offset + n])
 
-    if corpus == "binoc-all":
-        human, ai = [], []
-        for c in data.CORPORA:
-            h, a = sample(c)
-            human += h
-            ai += a
+    Human documents the calibration already consumed are skipped (in pool
+    order, including the binoc-all pool order); AI documents never overlap,
+    because calibration uses human documents only.
+    """
+    names = data.CORPORA if corpus == "binoc-all" else [corpus]
+    total = bundle.m + bundle.n_dev
+    if bundle.corpus == corpus:
+        skip = total
+    elif bundle.corpus == "binoc-all" and names != data.CORPORA:
+        skip = _binoc_consumed(names[0], total)
     else:
-        human, ai = sample(corpus)
+        skip = 0
+
+    human_pool, ai_pool = [], []
+    for name in names:
+        human_pool += data.get_human_docs(name, "falcon7", CACHE_DIR, progress=progress)
+        ai_pool += data.get_ai_docs(name, "falcon7", CACHE_DIR, progress=progress)
+    human = human_pool[skip:skip + n]
+    ai = ai_pool[:n]
     n = min(len(human), len(ai), n)
     if n < 5:
         raise RuntimeError(f"only {n} usable documents for benchmark")
@@ -1034,7 +1484,9 @@ def main():
     ap.add_argument("--replay", type=str, default=None,
                     help="text file: verify the two constructions are deterministic and "
                          "consistent with the frozen calibration (replay harness)")
-    ap.add_argument("--construction", choices=["A", "B"], default="B")
+    ap.add_argument("--construction", choices=["A", "B", "Simes", "both"], default="B",
+                    help="which rule to screen with (default B; 'both' prints A, "
+                         "Simes, and B on one scoring pass)")
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--m", type=int, default=200, help="calibration documents")
     ap.add_argument("--n-dev", type=int, default=50, help="development documents")
@@ -1070,8 +1522,15 @@ def main():
 
     if args.screen:
         text = open(args.screen).read()
-        if args.construction == "A":
+        if args.construction == "both":
+            pre = action_scores_for(text)
+            res = {"A": screen_a(text, bundle, args.alpha, pre=pre),
+                   "Simes": screen_simes(text, bundle, args.alpha, pre=pre),
+                   "B": screen_b(text, bundle, args.alpha, pre=pre)}
+        elif args.construction == "A":
             res = screen_a(text, bundle, args.alpha)
+        elif args.construction == "Simes":
+            res = screen_simes(text, bundle, args.alpha)
         else:
             res = screen_b(text, bundle, args.alpha)
         print(json.dumps(res))

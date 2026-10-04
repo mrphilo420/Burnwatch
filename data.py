@@ -22,6 +22,18 @@ RECOMMENDED = ["raid", "detectrl", "realdet"]
 ALL_CORPORA = CORPORA + RECOMMENDED
 RAW_CORPUS_NAMES = {"ccnews": "cc_news", "cnn": "cnn", "pubmed": "pubmed"}
 AI_SOURCES = ["falcon7", "llama2_13"]
+HUMAN_MIN_WORDS = 100
+
+# Human documents below come from script-free Hugging Face datasets and are
+# used only to top a short Binoculars pool up to the calibration size: the
+# generator splits above are fixed upstream (cc_news 1,158 / cnn 875 /
+# pubmed 111 from falcon-7b alone), which cannot serve m = 4,000.
+HUMAN_SUPPLEMENT = {
+    "cnn": {"repo": "abisee/cnn_dailymail", "name": "3.0.0",
+            "splits": ("validation", "train"), "field": "article"},
+    "pubmed": {"repo": "ccdv/pubmed-summarization", "name": None,
+               "splits": ("train", "test"), "field": "article"},
+}
 
 BASE_URL = "https://raw.githubusercontent.com/ahans30/Binoculars/main/datasets/core"
 
@@ -79,14 +91,122 @@ def get_pairs(corpus, source="falcon7", cache_dir="~/.cache"):
     return pairs
 
 
-def get_human_docs(corpus, source="falcon7", cache_dir="~/.cache", progress=None):
-    """Human-written documents of a corpus (used for calibration)."""
+def get_human_docs(corpus, source="falcon7", cache_dir="~/.cache", progress=None, need=None):
+    """Human-written documents of a corpus (used for calibration).
+
+    ``source`` selects the AI split only for corpora outside CORPORA/RECOMMENDED:
+    the Binoculars corpora pool the human side of *both* generator splits
+    (falcon-7b and llama2-13b are largely disjoint), and pass ``need`` to pull
+    in the corpus's supplement dataset when the pool is still too small. A
+    supplement already on disk is always included, so later calls with a
+    smaller ``need`` (or none) keep the same pool.
+    """
     if corpus in RECOMMENDED:
         docs = _recommended_docs(corpus, "human", cache_dir, progress)
+    elif corpus in CORPORA:
+        docs = _binoc_human_docs(corpus, cache_dir, progress)
+        extra = max(0, (need or 0) - len(set(docs)))
+        docs = docs + _supplement_docs(corpus, cache_dir, extra, progress,
+                                       exclude=set(docs))
     else:
         pairs = get_pairs(corpus, source, cache_dir)
         docs = [p["human"] for p in pairs]
-    docs = [d for d in docs if len(d.split()) >= 100]
+    docs = [d for d in docs if len(d.split()) >= HUMAN_MIN_WORDS]
+    return list(dict.fromkeys(docs))
+
+
+def _binoc_human_docs(corpus, cache_dir, progress=None, download=True):
+    """Human side of every generator split of a Binoculars corpus."""
+    docs = []
+    for src in AI_SOURCES:
+        raw = os.path.join(cache_dir_for(cache_dir), f"{corpus}-{src}.raw.jsonl")
+        if not download and not os.path.exists(raw):
+            continue
+        docs += [p["human"] for p in get_pairs(corpus, src, cache_dir)]
+    return docs
+
+
+def _supplement_docs(corpus, cache_dir, extra, progress=None, exclude=()):
+    """Top a short Binoculars pool up with its supplement dataset.
+
+    ``extra`` is how many further *unique* documents are wanted beyond
+    ``exclude`` (0 reads only what is already cached). The cache is
+    append-once per fetch and is never reduced.
+    """
+    path = os.path.join(cache_dir_for(cache_dir), f"{corpus}-human-supplement.jsonl")
+    docs = []
+    if os.path.exists(path):
+        with open(path) as f:
+            docs = [json.loads(line)["text"] for line in f if line.strip()]
+    spec = HUMAN_SUPPLEMENT.get(corpus)
+    if spec is None or extra <= 0:
+        return docs
+
+    # `extra` counts supplement documents wanted *beyond* the existing pool,
+    # so the target is pool + extra unique documents, not cache + extra.
+    seen = set(exclude) | set(docs)
+    want = len(set(exclude)) + extra
+    fetched = []
+    for split in spec["splits"]:
+        if len(seen) >= want:
+            break
+        print(f"[data] supplementing {corpus} from {spec['repo']} ({split})…", flush=True)
+        for row in _load_supplement_split(spec, split):
+            text = row.get(spec["field"], "")
+            if isinstance(text, str) and text.strip() and text not in seen:
+                seen.add(text)
+                fetched.append(text)
+            if progress and len(fetched) % 500 == 0:
+                progress(len(docs) + len(fetched), None)
+            if len(seen) >= want:
+                break
+    if fetched:
+        with open(path, "a") as f:
+            for text in fetched:
+                f.write(json.dumps({"text": text}) + "\n")
+        print(f"[data] cached {len(fetched)} supplement documents for {corpus}", flush=True)
+    return docs + fetched
+
+
+def _load_supplement_split(spec, split):
+    """Stream one split of a supplement dataset (script-free Hugging Face)."""
+    import datasets
+    kwargs = {"split": split, "streaming": True}
+    if spec.get("name"):
+        kwargs["name"] = spec["name"]
+    return datasets.load_dataset(spec["repo"], **kwargs)
+
+
+def human_pool_sizes(cache_dir="~/.cache"):
+    """Eligible human-pool sizes that are already on disk. Never downloads."""
+    sizes = {}
+    d = cache_dir_for(cache_dir)
+    for corpus in RECOMMENDED:
+        path = os.path.join(d, f"{corpus}-human.jsonl")
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            docs = [json.loads(line)["text"] for line in f if line.strip()]
+        sizes[corpus] = len(_eligible(docs))
+    for corpus in CORPORA:
+        if not any(os.path.exists(os.path.join(d, f"{corpus}-{s}.raw.jsonl"))
+                   for s in AI_SOURCES):
+            continue
+        docs = _binoc_human_docs(corpus, cache_dir, download=False)
+        docs += _supplement_docs(corpus, cache_dir, 0)
+        sizes[corpus] = len(_eligible(docs))
+    if sizes.get("ccnews") and sizes.get("cnn") and sizes.get("pubmed"):
+        pooled = (_binoc_human_docs("ccnews", cache_dir, download=False)
+                  + _binoc_human_docs("cnn", cache_dir, download=False)
+                  + _binoc_human_docs("pubmed", cache_dir, download=False))
+        for corpus in CORPORA:
+            pooled += _supplement_docs(corpus, cache_dir, 0)
+        sizes["binoc-all"] = len(_eligible(pooled))
+    return sizes
+
+
+def _eligible(docs):
+    docs = [d for d in docs if len(d.split()) >= HUMAN_MIN_WORDS]
     return list(dict.fromkeys(docs))
 
 
