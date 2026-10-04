@@ -127,6 +127,10 @@ the Simes region and its α/H_K correction), the validity gate and the
 unprocessable outcome, Construction B attestation, calibration diagnostics and
 bundle persistence (current and legacy caches), fixed-policy comparison, early
 stopping, document extraction, data metadata handling, and the audit API.
+`tests/test_detection.py` additionally screens real human and AI documents
+through the full path with the cached gpt2 calibration — human documents must
+stay under the false-alert level while AI documents are flagged far more often —
+and is skipped when no sufficiently large calibration is cached.
 
 ## CLI Screening
 
