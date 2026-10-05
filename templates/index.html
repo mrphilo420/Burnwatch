@@ -363,6 +363,70 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .how-table td{padding:14px 18px;border-bottom:1px solid var(--divider-soft);color:var(--ink-muted-80);font-variant-numeric:tabular-nums}
 .how-table tr:last-child td{border-bottom:none}
 .how-table td b{color:var(--ink);font-weight:600}
+
+/* ── screening flowchart ───────────────────────────────── */
+.flow{margin-top:32px;max-width:960px}
+.flow-lane{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:22px}
+.flow-lane-tag{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-muted-48)}
+.flow-lane-tag::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
+.flow-lane.flow-online .flow-lane-tag::before{background:var(--ink)}
+.flow-chain{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-top:16px}
+.flow-node{flex:1 1 194px;min-width:0;background:var(--canvas-parchment);border:1px solid var(--hairline);
+  border-radius:11px;padding:14px 16px 15px;transition:border-color .2s ease}
+.flow-node:hover{border-color:var(--primary-focus)}
+.flow-node .n{display:block;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;
+  font-weight:600;letter-spacing:.06em;color:var(--primary);margin-bottom:7px}
+.flow-node b{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.224px;color:var(--ink)}
+.flow-node i{display:block;font-style:normal;font-size:12.5px;line-height:1.5;color:var(--ink-muted-48);margin-top:6px}
+.flow-node code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink-muted-80)}
+.flow-h{display:flex;align-items:center;color:var(--primary);font-size:19px;font-weight:300;flex:0 0 auto}
+.flow-link{display:flex;flex-direction:column;align-items:center;gap:7px;margin:20px 0}
+.flow-link::before{content:"";width:1px;height:22px;
+  background:repeating-linear-gradient(to bottom,var(--primary) 0 5px,transparent 5px 10px)}
+.flow-link-label{max-width:620px;text-align:center;font-size:12.5px;line-height:1.55;letter-spacing:-.1px;
+  color:var(--ink-muted-80);background:var(--canvas-parchment);border:1px dashed rgba(0,102,204,.45);
+  border-radius:var(--pill);padding:8px 18px}
+.flow-link-label b{color:var(--ink);font-weight:600;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px}
+.flow-link-arrow{color:var(--primary);font-size:13px;line-height:1}
+.flow-gate{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;margin-top:16px}
+.flow-gate .flow-node{flex:1 1 264px}
+.flow-fail{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;
+  color:var(--ink-muted-48);letter-spacing:-.1px}
+.flow-fail b{color:var(--red);font-weight:600;white-space:nowrap}
+.flow-fail .fv{display:none;color:var(--primary);font-size:15px}
+.flow-outcome{display:flex;flex-direction:column;justify-content:center;gap:5px;flex:1 1 216px;
+  border:1px solid var(--hairline);border-radius:11px;background:var(--canvas-parchment);
+  padding:13px 16px;font-size:13px;line-height:1.45;letter-spacing:-.1px;color:var(--ink-muted-80)}
+.flow-outcome b{display:block;font-size:14px;font-weight:600;letter-spacing:-.224px;color:var(--ink)}
+.flow-outcome.referral{border-color:rgba(255,149,0,.45);background:rgba(255,149,0,.07)}
+.flow-down{display:flex;flex-direction:column;align-items:center;gap:5px;margin:16px 0;
+  font-size:12.5px;letter-spacing:-.1px;color:var(--ink-muted-48)}
+.flow-down b{color:var(--ink);font-weight:600}
+.flow-down .arrow{color:var(--primary);font-size:15px;line-height:1}
+.flow-reads{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.flow-read{background:var(--canvas-parchment);border:1px solid var(--hairline);border-radius:11px;
+  padding:15px 16px;transition:border-color .2s ease,transform .25s ease}
+.flow-read:hover{border-color:var(--primary-focus);transform:translateY(-2px)}
+.flow-read .n{display:block;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;
+  font-weight:600;letter-spacing:.06em;color:var(--primary);margin-bottom:7px}
+.flow-read b{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.224px;color:var(--ink)}
+.flow-read i{display:block;font-style:normal;font-size:12.5px;line-height:1.5;color:var(--ink-muted-48);margin-top:6px}
+.flow-read code{display:block;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;
+  color:var(--ink-muted-80);margin-top:9px}
+.flow-decision .n{display:block;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;
+  font-weight:600;letter-spacing:.06em;color:var(--primary);margin-bottom:8px}
+.flow-verdicts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.flow-verdict{border-radius:11px;padding:15px 16px;font-size:13.5px;line-height:1.5;letter-spacing:-.1px}
+.flow-verdict b{display:block;font-size:15px;font-weight:600;letter-spacing:-.224px;margin-bottom:5px}
+.flow-verdict code{display:block;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;margin-top:8px}
+.flow-verdict.hit{background:var(--surface-black);border:1px solid var(--surface-black);color:#d9d9db}
+.flow-verdict.hit b{color:#fff}
+.flow-verdict.hit code{color:#8fc0ff}
+.flow-verdict.miss{background:var(--canvas-parchment);border:1px solid var(--hairline);color:var(--ink-muted-80)}
+.flow-verdict.miss b{color:var(--ink)}
+.flow-verdict.miss code{color:var(--ink-muted-48)}
+.flow-note{margin-top:18px;max-width:780px}
 .ok{color:var(--green);font-weight:600}
 .no{color:var(--red);font-weight:600}
 .calc-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
@@ -499,8 +563,8 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
 .faq-q:hover{color:var(--primary)}
 @media (prefers-reduced-motion: reduce){
   .anim-rise{opacity:1;transform:none;animation:none!important}
-  .step,.route-step,.const-card,.route-arrow,.how-table tbody tr,.faq-q{transition:none!important}
-  .step:hover,.route-step:hover,.const-card:hover{transform:none}
+  .step,.route-step,.const-card,.route-arrow,.how-table tbody tr,.faq-q,.flow-node,.flow-read{transition:none!important}
+  .step:hover,.route-step:hover,.const-card:hover,.flow-read:hover{transform:none}
 }
 
 /* ── responsive layouts ────────────────────────────────── */
@@ -528,6 +592,13 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   .sub-nav-right .btn{min-height:36px;padding:9px 12px;font-size:13px}
   .route{justify-content:center}
   .how-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .flow-chain,.flow-gate{flex-direction:column;gap:6px}
+  .flow-chain .flow-node,.flow-gate .flow-node{flex:1 1 auto;width:100%}
+  .flow-h{width:100%;justify-content:center;font-size:18px;line-height:1;transform:rotate(90deg)}
+  .flow-fail .fh{display:none}
+  .flow-fail .fv{display:inline}
+  .flow-outcome{flex:1 1 auto;width:100%}
+  .flow-reads,.flow-verdicts{grid-template-columns:1fr}
 }
 
 /* Phone: one-column reading flow, full-width actions, horizontally scrollable data. */
@@ -557,6 +628,8 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
   .route-step{width:100%;min-width:0}
   .route-arrow{font-size:20px;line-height:1;transform:rotate(90deg)}
   .route:hover .route-arrow{transform:rotate(90deg)}
+  .flow-lane{padding:16px}
+  .flow-link-label{max-width:100%;border-radius:14px;padding:8px 14px}
   .limit-card{padding:20px}
   .marked-card{padding:22px 20px}
   .interpret-card{padding:22px 20px}
@@ -1021,6 +1094,128 @@ body{font-family:var(--text);color:var(--body);background:var(--canvas);-webkit-
           <span class="step-num">3 · Control</span>
           <h3 class="tagline">Pathwise guarantee</h3>
           <p class="body muted-light">A: a union bound over a registered family permits score-dependent action selection. B: a calibrated complete-path maximum permits early stopping without splitting the budget.</p>
+        </div>
+      </div>
+
+      <div class="how-section">
+        <h2 class="display-md">The screening flow, step by step</h2>
+        <p class="body muted-light" style="max-width:740px;margin-top:12px">
+          Two lanes: calibration runs offline once per model and corpus, screening runs once per
+          document. The only thing that crosses between them is the frozen rank table.
+        </p>
+
+        <div class="flow">
+          <div class="flow-lane">
+            <span class="flow-lane-tag">Offline · once per model and corpus</span>
+            <div class="flow-chain">
+              <div class="flow-node">
+                <span class="n">01 · CORPUS</span>
+                <b>Collect human reference documents</b>
+                <i>Eligible, deduplicated documents of at least 100 words from the reference corpus — RealDet, RAID, DetectRL-X, cc_news, CNN, PubMed, or IMDB.</i>
+              </div>
+              <div class="flow-h">→</div>
+              <div class="flow-node">
+                <span class="n">02 · SPLIT</span>
+                <b>Development first, calibration second</b>
+                <i>50 development documents fix the standardization and futility rules before calibration starts; the next <code>m = <span data-flow-m>4,000</span></code> documents are ranked, never tuned on.</i>
+              </div>
+              <div class="flow-h">→</div>
+              <div class="flow-node">
+                <span class="n">03 · SCORE</span>
+                <b>Score every document once</b>
+                <i>Likelihood, rank, log-rank and slop over 128–1,024 tokens, plus the optional contrasting-model and curvature actions — one shared score map.</i>
+              </div>
+              <div class="flow-h">→</div>
+              <div class="flow-node">
+                <span class="n">04 · FREEZE</span>
+                <b>Freeze the rank table</b>
+                <i>Calibration scores, complete-path maxima, g-standardization and the futility threshold are stored with a config fingerprint and reused verbatim.</i>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-link">
+            <span class="flow-link-label">frozen table only · <b>cal_scores</b> (<span data-flow-m>4,000</span> × <span data-flow-k>16</span>) + <b>cal_maxima</b> — the corpus is never opened again at decision time</span>
+            <span class="flow-link-arrow">▼</span>
+          </div>
+
+          <div class="flow-lane flow-online">
+            <span class="flow-lane-tag">Online · once per document</span>
+
+            <div class="flow-gate">
+              <div class="flow-node">
+                <span class="n">05 · INPUT</span>
+                <b>Paste or upload a document</b>
+                <i>The text is scored in this session; the audit log records run metadata only, never the source.</i>
+              </div>
+              <div class="flow-h">→</div>
+              <div class="flow-node">
+                <span class="n">06 · GATE</span>
+                <b>Validity gate: 32 words minimum</b>
+                <i>V(X) runs before any score exists, so a short document can neither alert nor acquit.</i>
+              </div>
+              <div class="flow-fail"><b>fails</b><span class="fh">→</span><span class="fv">↓</span></div>
+              <div class="flow-outcome referral">
+                <b>Unprocessable</b>
+                No conformal evidence exists — referred to human review.
+              </div>
+            </div>
+
+            <div class="flow-down"><span><b>passes</b> · 32 words or more</span><span class="arrow">↓</span></div>
+
+            <div class="flow-node">
+              <span class="n">07 · SCORE ONCE</span>
+              <b>One pass over the registered family</b>
+              <i><span data-flow-k>16</span> actions (detector × budget) share a single scoring pass; a failed action is sentineled at −∞ and adds no alert evidence.</i>
+            </div>
+
+            <div class="flow-down"><span><b>rank</b> against the frozen table</span><span class="arrow">↓</span></div>
+
+            <div class="flow-reads">
+              <div class="flow-read">
+                <span class="n">08 · A — UNION BOUND</span>
+                <b>Weighted conformal ranks</b>
+                <i>Each action gets an error share α·w; the first crossing alerts and the union bound covers whatever subset ran.</i>
+                <code>alert if p ≤ α·w<sub>a</sub></code>
+              </div>
+              <div class="flow-read">
+                <span class="n">08 · B — PATH MAXIMUM</span>
+                <b>One calibrated route maximum</b>
+                <i>The running max of the development-fixed route is ranked against complete-path maxima; stopping early is free.</i>
+                <code>alert if p<sup>path</sup> ≤ α</code>
+              </div>
+              <div class="flow-read">
+                <span class="n">08 · SIMES — STEP-UP</span>
+                <b>Rank the whole family</b>
+                <i>Sort all K p-values and step up to the first crossing of the corrected level under arbitrary dependence.</i>
+                <code>alert at p<sub>(k)</sub> ≤ α·k/(K·H<sub>K</sub>)</code>
+              </div>
+            </div>
+
+            <div class="flow-down"><span><b>decision</b> at level α</span><span class="arrow">↓</span></div>
+
+            <div class="flow-decision">
+              <span class="n">09 · DECISION</span>
+              <div class="flow-verdicts">
+                <div class="flow-verdict hit">
+                  <b>Alert — flag for review</b>
+                  The rank crossed α: the human-reference null is rejected for this document. A flag is a referral, not proof of AI authorship.
+                  <code>p ≤ α</code>
+                </div>
+                <div class="flow-verdict miss">
+                  <b>No alert — continue</b>
+                  No crossing at level α: nothing to flag. A quiet run is not evidence of human authorship either.
+                  <code>p &gt; α</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="caption muted-light flow-note">
+            Steps 01–04 run once per model and corpus and are cached; steps 05–09 run per document.
+            Corpora supply the human reference table and the benchmark measurements only — every
+            decision is a rank against that frozen table, never a lookup into a dataset.
+          </p>
         </div>
       </div>
 
@@ -1507,6 +1702,8 @@ function applyStatus(s){
     + (c.binoculars ? ' · contrasting-model detector on' : '')
     + (c.fastdetect ? ' · Fast-DetectGPT curvature on' : '');
   if(c.resolution) renderCounts(c.resolution, c.diagnostics);
+  document.querySelectorAll('[data-flow-m]').forEach(el=>{ el.textContent = c.m.toLocaleString('en-US'); });
+  document.querySelectorAll('[data-flow-k]').forEach(el=>{ el.textContent = String(c.n_actions); });
   STATE.model = c.model;
   STATE.corpus = c.corpus || STATE.corpus;
   STATE.binoculars = c.binoculars;
